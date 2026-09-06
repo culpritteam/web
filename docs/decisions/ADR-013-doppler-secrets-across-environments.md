@@ -24,7 +24,7 @@ the Turnstile keys, the `NEXT_PUBLIC_*` URLs — were maintained in four separat
 | Where | How | Used by |
 |---|---|---|
 | Doppler `culprit/dev` | `doppler run --` wraps `dev`, `start`, `db:migrate`, `db:seed` | local development, and Playwright via its `npm run dev` web server |
-| GitHub Actions Secrets + Variables | `.github/workflows/docker.yml` | CI: `db:generate`, `db:deploy`, the image's build args and BuildKit secrets |
+| GitHub Actions Secrets + Variables | `.github/workflows/docker.yml` | CI: `db:generate`, `db:deploy`, the image's build args and BuildKit secrets — nine entries, all duplicates of values below |
 | `.env.production` on the VPS | bootstrapped once by hand, never touched by CI | the running staging container |
 | Vercel project env vars | Vercel dashboard | production builds and runtime |
 
@@ -47,8 +47,8 @@ So: yes for the VPS.
 
 ## Decision
 
-**Doppler is the source of truth for local (`dev`) and staging (`stg`). Vercel production is
-uploaded directly and is not synced.**
+**Doppler is the source of truth for local (`dev`) and staging (`stg`), including CI. Vercel
+production is uploaded directly and is not synced.**
 
 **The VPS pulls its own config.** `scripts/deploy.sh` looks for `.doppler-token` (a read-only
 service token for the `stg` config, `chmod 600`) next to `docker-compose.production.yml`. When it
@@ -65,11 +65,26 @@ A Doppler outage degrades rather than blocks. `--fallback .doppler-fallback.json
 successful fetch; if even that is unavailable the script keeps the existing `.env.production` and
 logs a warning, and only refuses outright when there is no previous config to deploy with at all.
 
+**CI fetches at run time.** `.github/workflows/docker.yml` calls
+[`dopplerhq/secrets-fetch-action@v2.0.0`](https://github.com/DopplerHQ/secrets-fetch-action) in
+each job with a read-only `stg` service token, and reads the values as step outputs — which is what
+`docker/build-push-action`'s `build-args` and `secrets` need, since those are YAML expressions a
+`doppler run` wrapper could never reach. The action masks every fetched value in the log.
+
+GitHub keeps exactly three things besides `DOPPLER_TOKEN`: `DEPLOY_SSH_KEY`, `DEPLOY_HOST` and
+`DEPLOY_USER`. Those are how the pipeline reaches the VPS rather than configuration the
+application reads, and a multi-line private key is the value blanket log masking handles least
+well — moving it buys nothing and adds a failure mode.
+
+The CI token and the VPS token are minted separately for the same config, so either can be revoked
+without taking the other down.
+
 **Vercel is a direct upload.** Production values are exported from Doppler and uploaded to the
 Vercel project by hand (`doppler secrets download --no-file --format env --config prd` → Vercel's
-env-var import, or `vercel env add`). Doppler's Vercel integration would sync this automatically
-but is not part of the free tier, and production is the one environment where a config change
-should be a deliberate, noticed act rather than a background sync.
+env-var import, or `vercel env add`). Doppler's Vercel integration could sync this automatically —
+the free plan allows five config syncs — but production is the one environment where a config
+change should be a deliberate, noticed act rather than something that happens in the background
+while nobody is looking at it.
 
 ## Alternatives considered
 
@@ -83,11 +98,14 @@ not forward the ambient environment to a container, so every variable would have
 again under `environment:` in `docker-compose.production.yml` — the same list, maintained twice,
 which is the problem this ADR exists to remove.
 
-**Move CI onto Doppler too, replacing the GitHub Secrets and Variables.** Not done here, and worth
-doing separately. `docker/build-push-action` takes its `build-args` and `secrets` as YAML
-expressions, so they cannot come from a `doppler run` wrapper — each value has to be fetched into
-the job's environment and masked individually, which is a noisier change than it looks and is on
-the critical path of every deploy.
+**Doppler's GitHub Actions sync integration**, which pushes values into GitHub Actions Secrets so
+the workflow needs no change. Rejected: it keeps a full copy of every secret in GitHub — the
+duplication this ADR exists to remove — and each sync counts against the free plan's five.
+Runtime fetching leaves GitHub holding one revocable token.
+
+**A `doppler run` wrapper around the whole build job.** Not possible: `docker/build-push-action`
+takes its `build-args` and `secrets` as YAML expressions, which cannot read a wrapper's ambient
+environment. Step outputs can.
 
 ## Consequences
 
@@ -99,8 +117,12 @@ the critical path of every deploy.
   on. The `--fallback` file is what keeps that dependency from being able to stop a deploy.
 - The `stg` and `prd` configs must be populated before any of this does anything — they are empty
   as of this ADR, and the real values still live in GitHub Actions, on the VPS and in Vercel.
-- GitHub Actions keeps its own Secrets and Variables for the build. Until the alternative above is
-  taken, build-time values exist in two places and must be changed in both.
+- CI gains a hard dependency on Doppler: if the fetch fails, no build happens. Unlike the VPS
+  there is no fallback file, and that is the right trade for CI — a build with stale config is
+  worse than no build.
+- `DOPPLER_TOKEN` must exist in GitHub before this workflow can run at all, and the `stg` config
+  must hold every value the old Secrets and Variables held. Until both are true, every push fails
+  at the first job.
 
 ## Supersedes / Superseded by
 

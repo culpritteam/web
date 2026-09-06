@@ -3,18 +3,31 @@ name: Docker build & publish
 # Builds the production image in CI and pushes it to GHCR. The VPS only ever pulls what this
 # workflow publishes — it never builds. See docs/deployment/docker-vps.md.
 #
+# Application config comes from Doppler (project `culprit`, config `stg`), fetched per job with a
+# read-only service token — see ADR-013. GitHub holds only what CI needs to reach the box:
+#
 # Required repo configuration (Settings > Secrets and variables > Actions):
-#   Secrets:   DATABASE_URL, DIRECT_URL, BETTER_AUTH_SECRET, TURNSTILE_SECRET_KEY
-#              (DATABASE_URL/DIRECT_URL/BETTER_AUTH_SECRET are needed at build time only because
-#              Next statically traces route handlers that import the Zod-validated server env
-#              module — same values used at runtime, see docs/deployment/docker-vps.md)
+#   Secrets:   DOPPLER_TOKEN (read-only Doppler service token for culprit/stg — the only
+#              application credential stored here; everything else is fetched with it)
 #              DEPLOY_SSH_KEY (private key for the `deploy` user on the target VPS)
-#   Variables: NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_CALENDLY_URL, NEXT_PUBLIC_TURNSTILE_SITE_KEY,
-#              R2_PUBLIC_URL (public by design — safe as plain repo Variables, not Secrets;
-#              R2_PUBLIC_URL specifically must be set here even though it's not a NEXT_PUBLIC_*
-#              var, because next.config.ts's images.remotePatterns is computed from it at build
-#              time and baked into the standalone output — see Dockerfile)
-#              DEPLOY_HOST, DEPLOY_USER (VPS SSH target)
+#   Variables: DEPLOY_HOST, DEPLOY_USER (VPS SSH target)
+#
+# The SSH triple deliberately stays in GitHub: it is how the pipeline reaches the VPS, not
+# configuration the application reads, and a multi-line private key is exactly the value log
+# masking handles least well.
+#
+# Fetched from Doppler at run time:
+#   DATABASE_URL, DIRECT_URL, BETTER_AUTH_SECRET — needed at build time only because Next
+#     statically traces route handlers that import the Zod-validated server env module; same
+#     values the container uses at runtime (docs/deployment/docker-vps.md).
+#   NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_CALENDLY_URL, NEXT_PUBLIC_TURNSTILE_SITE_KEY — public by
+#     design, inlined into the client bundle.
+#   R2_PUBLIC_URL — not a NEXT_PUBLIC_* var and not secret, but required at build time:
+#     next.config.ts's images.remotePatterns is computed from it and baked into the standalone
+#     output, so setting it only at runtime has no effect (see Dockerfile).
+#
+# secrets-fetch-action masks every fetched value in the log automatically, so the public ones
+# above appear masked too. That is the action's behaviour, not a claim that they are secret.
 #
 # The VPS is shared with other apps behind a single Caddy reverse proxy — see
 # docs/deployment/docker-vps.md for the ~/server/apps/<app>/ layout this job assumes already
@@ -62,6 +75,13 @@ jobs:
           cache: npm
 
       - run: npm ci --legacy-peer-deps
+
+      - name: Fetch config from Doppler
+        id: doppler
+        uses: dopplerhq/secrets-fetch-action@v2.0.0
+        with:
+          doppler-token: ${{ secrets.DOPPLER_TOKEN }}
+
       # No postinstall hook generates the Prisma client — lint/typecheck/test all import types
       # from it, so a fresh checkout fails without this (caught the hard way: passed locally only
       # because a stale generated client already existed on disk from earlier `npm run build`).
@@ -69,7 +89,7 @@ jobs:
       # `generate`, which otherwise makes no DB connection at all.
       - run: npm run db:generate
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ steps.doppler.outputs.DIRECT_URL }}
 
       - run: npm run lint
       - run: npm run typecheck
@@ -90,13 +110,19 @@ jobs:
 
       - run: npm ci --legacy-peer-deps
 
+      - name: Fetch config from Doppler
+        id: doppler
+        uses: dopplerhq/secrets-fetch-action@v2.0.0
+        with:
+          doppler-token: ${{ secrets.DOPPLER_TOKEN }}
+
       # Release-step migration, per docs/deployment/deployment.md: `predev` only runs before
       # `next dev`, never before a build, so CI must run `migrate deploy` explicitly. Runs against
       # DIRECT_URL (unpooled) — Supabase's pooled DATABASE_URL is pgbouncer transaction mode,
       # which can't run migrations.
       - run: npm run db:deploy
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ steps.doppler.outputs.DIRECT_URL }}
 
   build-and-push:
     name: Build & push image
@@ -122,6 +148,14 @@ jobs:
         # (Wyco68/CulpritWeb), which docker/metadata-action already lowercases for the pushed
         # tags — this mirrors that so the deploy job pulls the same ref that was actually pushed.
         run: echo "value=$(echo '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      # Fetched as step outputs rather than injected as env vars: build-args and BuildKit secrets
+      # below are YAML expressions, which a `doppler run` wrapper could not reach.
+      - name: Fetch config from Doppler
+        id: doppler
+        uses: dopplerhq/secrets-fetch-action@v2.0.0
+        with:
+          doppler-token: ${{ secrets.DOPPLER_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -156,14 +190,14 @@ jobs:
           cache-from: ${{ github.event.inputs.no_cache == 'true' && '' || 'type=gha' }}
           cache-to: type=gha,mode=max
           build-args: |
-            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
-            NEXT_PUBLIC_CALENDLY_URL=${{ vars.NEXT_PUBLIC_CALENDLY_URL }}
-            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
-            R2_PUBLIC_URL=${{ vars.R2_PUBLIC_URL }}
+            NEXT_PUBLIC_APP_URL=${{ steps.doppler.outputs.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_CALENDLY_URL=${{ steps.doppler.outputs.NEXT_PUBLIC_CALENDLY_URL }}
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ steps.doppler.outputs.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+            R2_PUBLIC_URL=${{ steps.doppler.outputs.R2_PUBLIC_URL }}
           secrets: |
-            database_url=${{ secrets.DATABASE_URL }}
-            direct_url=${{ secrets.DIRECT_URL }}
-            better_auth_secret=${{ secrets.BETTER_AUTH_SECRET }}
+            database_url=${{ steps.doppler.outputs.DATABASE_URL }}
+            direct_url=${{ steps.doppler.outputs.DIRECT_URL }}
+            better_auth_secret=${{ steps.doppler.outputs.BETTER_AUTH_SECRET }}
 
   deploy:
     name: Deploy to VPS

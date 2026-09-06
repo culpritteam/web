@@ -136,26 +136,42 @@ doppler secrets download --no-file --format env --project culprit --config prd >
 
 ## Required CI configuration
 
-Set once in the repo (**Settings → Secrets and variables → Actions**):
+Application config comes from Doppler (`culprit` → `stg`), fetched per job by
+[`dopplerhq/secrets-fetch-action@v2.0.0`](https://github.com/DopplerHQ/secrets-fetch-action) with a
+read-only service token. GitHub stores only what CI needs to reach the box
+(**Settings → Secrets and variables → Actions**):
 
 | Name | Kind | Notes |
 |---|---|---|
-| `DATABASE_URL` | Secret | Same pooled Supabase URL used at runtime |
-| `DIRECT_URL` | Secret | Unpooled — used for both `migrate deploy` and the build-time env check |
-| `BETTER_AUTH_SECRET` | Secret | Same value used at runtime |
-| `NEXT_PUBLIC_APP_URL` | Variable | Public by design — inlined into the client bundle |
-| `NEXT_PUBLIC_CALENDLY_URL` | Variable | Public |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Variable | Public |
-| `R2_PUBLIC_URL` | Variable | Public (the R2 bucket's public dev URL). Not a `NEXT_PUBLIC_*` var, but still required at build time: `next.config.ts`'s `images.remotePatterns` is computed from it and baked into `.next/required-server-files.json` — the standalone runner never re-reads `next.config.ts`, so setting this only in `.env.production` (runtime) has no effect on image optimization |
-| `TURNSTILE_SECRET_KEY` | Secret | Used at build time for the same static-trace reason as the DB vars above; also lives in `.env.production` for runtime |
-| `DEPLOY_SSH_KEY` | Secret | Private key for the VPS `deploy` user — the `deploy` job's only credential |
+| `DOPPLER_TOKEN` | Secret | Read-only Doppler service token for `culprit/stg`. The only application credential in GitHub — every value below is fetched with it |
+| `DEPLOY_SSH_KEY` | Secret | Private key for the VPS `deploy` user. Stays here on purpose: it is how the pipeline reaches the box, not config the app reads, and a multi-line private key is the value log masking handles least well |
 | `DEPLOY_HOST` / `DEPLOY_USER` | Variable | SSH target — not secret, but scoped as repo config rather than hardcoded in the workflow |
+
+Fetched from Doppler at run time:
+
+| Name | Used by | Notes |
+|---|---|---|
+| `DIRECT_URL` | `db:generate`, `db:deploy`, image build | Unpooled — `migrate deploy` cannot run through pgbouncer |
+| `DATABASE_URL` | image build | Same pooled Supabase URL the container uses at runtime |
+| `BETTER_AUTH_SECRET` | image build | Same value used at runtime |
+| `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_CALENDLY_URL`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | image build | Public by design — inlined into the client bundle |
+| `R2_PUBLIC_URL` | image build | Public (the R2 bucket's public dev URL). Not a `NEXT_PUBLIC_*` var, but still required at build time: `next.config.ts`'s `images.remotePatterns` is computed from it and baked into `.next/required-server-files.json` — the standalone runner never re-reads `next.config.ts`, so setting this only in `.env.production` (runtime) has no effect on image optimization |
 
 `DATABASE_URL`/`DIRECT_URL`/`BETTER_AUTH_SECRET` are needed at *build* time only because
 `next build` traces every route handler, including ones that import the Zod-validated
 `env.server.ts` module — no database connection is actually opened during the build. They're
 passed to `docker build` as BuildKit secrets (`--mount=type=secret`), not `ARG`/`ENV`, so they
 never land in an image layer, `docker history`, or a build log.
+
+The action masks every fetched value in the log, including the public ones — that is the action's
+blanket behaviour, not a claim that `NEXT_PUBLIC_*` is secret.
+
+**Mint the CI token separately from the VPS token.** Two tokens for the same config, so either can
+be revoked without taking the other down:
+
+```bash
+doppler configs tokens create github-actions --project culprit --config stg --plain
+```
 
 ## Normal deployment
 

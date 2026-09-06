@@ -53,9 +53,11 @@ Three environments, two mechanisms — see
 | Staging (VPS) | Doppler `culprit/stg` | `scripts/deploy.sh` regenerates `.env.production` from a read-only service token held on the box — [setup](docker-vps.md#runtime-config-from-doppler). Opt-in: without `.doppler-token` the file stays hand-managed |
 | Production (Vercel) | Doppler `culprit/prd` | **Manual.** Export and upload to the Vercel project; nothing syncs automatically |
 
-CI is the exception: `.github/workflows/docker.yml` still reads build-time values from GitHub
-Actions Secrets and Variables, so those exist in two places and must be changed in both. Moving CI
-onto Doppler is a separate change (ADR-013, "Alternatives considered").
+CI reads the same `stg` config: `.github/workflows/docker.yml` fetches it per job with
+[`dopplerhq/secrets-fetch-action`](https://github.com/DopplerHQ/secrets-fetch-action) and a
+read-only service token. GitHub keeps only `DOPPLER_TOKEN` plus the VPS SSH target
+(`DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`) — see
+[docker-vps.md](docker-vps.md#required-ci-configuration).
 
 `build` and `db:deploy` are deliberately *not* Doppler-wrapped — CI and Docker run those exact
 scripts with env injected directly and have no Doppler CLI.
