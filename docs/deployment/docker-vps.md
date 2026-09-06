@@ -69,7 +69,9 @@ curl -fsSLO https://raw.githubusercontent.com/wyco68/culpritweb/main/docker-comp
 curl -fsSLO https://raw.githubusercontent.com/wyco68/culpritweb/main/scripts/deploy.sh
 chmod +x deploy.sh
 
-# Runtime config — copy .env.example from the repo, fill in real values, keep off git
+# Runtime config — copy .env.example from the repo, fill in real values, keep off git.
+# Skip this if you are wiring the box to Doppler instead (see below) — deploy.sh will write
+# .env.production itself on the first deploy.
 cp .env.example .env.production
 "$EDITOR" .env.production
 
@@ -92,6 +94,45 @@ echo "$GHCR_TOKEN" | docker login ghcr.io -u <github-username> --password-stdin
 
 The CI deploy job does this automatically with its own short-lived `GITHUB_TOKEN`; only needed by
 hand here for a manual/local deploy.
+
+## Runtime config from Doppler
+
+Optional, per box, and off unless you turn it on. With it, the VPS pulls its own `.env.production`
+from Doppler on every deploy, so rotating a staging secret is one edit in Doppler rather than an
+SSH session and a hand-edited file. See
+[ADR-013](../decisions/ADR-013-doppler-secrets-across-environments.md) for why the box holds the
+token instead of CI sending it one.
+
+```bash
+# 1. In Doppler (once): populate the `stg` config with the same values .env.production holds, then
+#    mint a read-only service token for it — Dashboard → culprit → stg → Access, or:
+doppler configs tokens create vps --project culprit --config stg --plain   # run this locally
+
+# 2. On the VPS, in ~/server/apps/culprit-web:
+curl -Ls https://cli.doppler.com/install.sh | sudo sh
+printf '%s
+' "dp.st.stg.xxxxxxxx" > .doppler-token
+chmod 600 .doppler-token
+```
+
+That is the whole setup. On the next `./deploy.sh <tag>`:
+
+- `.env.production` is regenerated from the token's config (`--format docker`, the `KEY=value`
+  shape compose's `env_file:` expects) and written `chmod 600`.
+- `.doppler-fallback.json` keeps an encrypted copy of the last successful fetch, so a Doppler
+  outage deploys with the previous values instead of failing.
+- If the fetch fails and there is no fallback, the existing `.env.production` is used and the
+  deploy logs a warning. It only refuses outright when there is no config at all to deploy with.
+
+Remove `.doppler-token` to go back to the hand-managed file — nothing else changes.
+
+**Production (Vercel) is not wired to Doppler.** Export from the `prd` config and upload to the
+Vercel project by hand:
+
+```bash
+doppler secrets download --no-file --format env --project culprit --config prd > vercel.env
+# Vercel → Project → Settings → Environment Variables → Import .env, then delete vercel.env
+```
 
 ## Required CI configuration
 
@@ -165,8 +206,9 @@ dependency check, so a transient Supabase/Resend blip doesn't trigger a containe
 
 ## Updating environment variables
 
-Runtime config lives entirely in `.env.production` on the VPS — never in the image. To change a
-value (rotate a secret, point at a different Turnstile site, etc.):
+Runtime config lives entirely in `.env.production` on the VPS — never in the image. If the box is
+wired to Doppler, edit the value in the `stg` config and redeploy; `deploy.sh` rewrites
+`.env.production` for you. Otherwise, by hand:
 
 ```bash
 "$EDITOR" .env.production

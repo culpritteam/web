@@ -1,9 +1,9 @@
 ---
 status: current
 source_of_truth: false
-last_updated: 2026-09-02
+last_updated: 2026-09-06
 related_modules: [shared, integrations]
-related_decisions: [ADR-001, ADR-002]
+related_decisions: [ADR-001, ADR-002, ADR-013]
 ---
 
 # Deployment
@@ -41,6 +41,24 @@ CI, never built on the VPS itself. Production is Vercel, built by Vercel from th
 See [architecture/overview.md](../architecture/overview.md) for the full adopted stack and
 [docker-vps.md](docker-vps.md) for the pipeline itself; everything below (build command,
 migrations, connection pooling) is the platform-agnostic part that pipeline relies on.
+
+## Secrets & environment config
+
+Three environments, two mechanisms — see
+[ADR-013](../decisions/ADR-013-doppler-secrets-across-environments.md).
+
+| Environment | Source of truth | How it gets there |
+|---|---|---|
+| Local | Doppler `culprit/dev` | `doppler run --` wraps `dev`, `start`, `db:migrate`, `db:seed`; Playwright inherits it through `npm run dev` |
+| Staging (VPS) | Doppler `culprit/stg` | `scripts/deploy.sh` regenerates `.env.production` from a read-only service token held on the box — [setup](docker-vps.md#runtime-config-from-doppler). Opt-in: without `.doppler-token` the file stays hand-managed |
+| Production (Vercel) | Doppler `culprit/prd` | **Manual.** Export and upload to the Vercel project; nothing syncs automatically |
+
+CI is the exception: `.github/workflows/docker.yml` still reads build-time values from GitHub
+Actions Secrets and Variables, so those exist in two places and must be changed in both. Moving CI
+onto Doppler is a separate change (ADR-013, "Alternatives considered").
+
+`build` and `db:deploy` are deliberately *not* Doppler-wrapped — CI and Docker run those exact
+scripts with env injected directly and have no Doppler CLI.
 
 ## Build
 

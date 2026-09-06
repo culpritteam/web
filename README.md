@@ -44,6 +44,11 @@ You need at minimum a Supabase Postgres connection (`DATABASE_URL`/`DIRECT_URL`)
 is optional — each integration no-ops gracefully when its env vars are unset, so local dev never
 gets blocked waiting on a third-party credential.
 
+Doppler also backs staging: the VPS pulls its own `.env.production` from the `stg` config on each
+deploy (see [docs/deployment/docker-vps.md](docs/deployment/docker-vps.md#runtime-config-from-doppler)).
+Vercel production is uploaded by hand and is not synced —
+[ADR-013](docs/decisions/ADR-013-doppler-secrets-across-environments.md).
+
 `build` and `db:deploy` are deliberately NOT Doppler-wrapped: Next loads `.env.local` on its own,
 and `prisma.config.ts` loads it for the Prisma CLI too, so both commands work with or without
 Doppler installed. This also matters in CI/Docker, which run these two exact scripts with env vars

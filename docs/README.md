@@ -57,6 +57,11 @@ the history inline. Concretely:
   [ADR-010](decisions/ADR-010-appointment-hard-delete-reschedule-per-appointment-visibility.md)),
   and the per-row `isPublic` that replaced them went with appointments. Do not resurrect either
   without a new ADR.
+- **Env config comes from Doppler for local and staging, and by hand for Vercel production.** The
+  VPS pulls its own `.env.production` from the `stg` config at deploy time; CI is the one place
+  that still reads GitHub Actions Secrets/Variables. See
+  [ADR-013](decisions/ADR-013-doppler-secrets-across-environments.md). Do not add a new env var to
+  only one of those places.
 - **Event video is a YouTube embed, never an uploaded file.** Photos go to R2; video does not, and
   must not — see [ADR-011](decisions/ADR-011-events-replace-appointments.md) and the free-tier rule
   in `CLAUDE.md`.
