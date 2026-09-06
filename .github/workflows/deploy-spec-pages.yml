@@ -9,7 +9,6 @@ name: Deploy Docs to GitHub Pages
 #   docs-site/ARCHITECTURE.html          -> architecture.html
 #   docs-site/DEPLOYMENT.html            -> deployment.html
 #   docs-site/CICD_SECRETS.html          -> cicd-secrets.html
-#   docs-site/AI_AGENTS.html             -> ai-agents.html
 #   docs-site/HOSTING_COST.html          -> hosting-cost.html   (+ hosting-cost-assets/)
 #   docs-site/style.css                  -> style.css   (shared stylesheet all pages link to)
 # Fully independent from the Vercel application deploy — different target, different domain.
@@ -58,7 +57,7 @@ jobs:
           rm -rf _site
           mkdir -p _site
           cp docs-site/PROJECT_SPEC.html _site/index.html
-          for pair in "DEVELOPMENT_PROGRESS.html:progress.html" "FRONTEND.html:frontend.html" "BACKEND.html:backend.html" "ARCHITECTURE.html:architecture.html" "DEPLOYMENT.html:deployment.html" "CICD_SECRETS.html:cicd-secrets.html" "AI_AGENTS.html:ai-agents.html" "HOSTING_COST.html:hosting-cost.html"; do
+          for pair in "DEVELOPMENT_PROGRESS.html:progress.html" "FRONTEND.html:frontend.html" "BACKEND.html:backend.html" "ARCHITECTURE.html:architecture.html" "DEPLOYMENT.html:deployment.html" "CICD_SECRETS.html:cicd-secrets.html" "HOSTING_COST.html:hosting-cost.html"; do
             src="${pair%%:*}"
             dest="${pair##*:}"
             if [ -f "docs-site/$src" ]; then

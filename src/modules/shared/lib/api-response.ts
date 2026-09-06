@@ -75,7 +75,7 @@ export function apiUnexpected(error: unknown): NextResponse<ApiError> {
 }
 
 export type PublicCacheOptions = {
-  /** Browser (private-cache) TTL in seconds. Kept shorter than `edgeTtl` per CLAUDE.md/ADR-007's
+  /** Browser (private-cache) TTL in seconds. Kept shorter than `edgeTtl` per ADR-007's
    * "fast cache, always current" intent — a stale browser tab should catch up sooner than the
    * shared edge cache does. */
   browserTtl: number;

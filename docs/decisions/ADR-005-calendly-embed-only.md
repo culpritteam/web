@@ -21,7 +21,7 @@ adopted 2026-08-02 and removed 2026-08-08)
 ## Context
 
 The customer's only scheduling requirement was to match her existing public Calendly page
-(`.claude/reference/se-min-001-customer-meeting-1.md §4.1/§8`). Between 2026-08-02 and
+(first customer meeting minutes, §4.1/§8`). Between 2026-08-02 and
 2026-08-08 the project briefly adopted a server-side Calendly REST integration: a
 PAT-authenticated client reading event types/events/availability, an admin cancel-with-sync
 action, and a signature-verified webhook receiver intended to auto-record bookings made in the
@@ -30,7 +30,7 @@ widget.
 That design's core premise didn't hold on Calendly's **Free** plan: **webhook subscriptions
 require the Standard tier or above** — the Free plan has no webhook access on any tier, not even a
 limited one. A receiver that can never actually be subscribed on the project's plan isn't a
-partial win; per project constraint (`CLAUDE.md`, "Free-tier-only, deliberately"), every
+partial win; per project constraint ("free-tier-only, deliberately"), every
 third-party service must stay usable on its free tier.
 
 ## Decision
@@ -62,7 +62,7 @@ the public Events tab, the admin writes it up there as an event by hand (see
   admin Events screen ([ADR-011](ADR-011-events-replace-appointments.md)).
 - `src/modules/integrations/calendly/README.md` documents this rationale in the codebase itself,
   co-located with the embed component.
-- `.claude/skills/fullstack-nextjs-starter/references/integrations.md` still describes only the
+- The original implementation guide still describes only the
   embed-only design and never documented the intervening REST/webhook period — no contradiction
   there, but see [Known contradictions](../README.md#known-contradictions--gaps) for the other
   skill-doc drift.
@@ -71,5 +71,5 @@ the public Events tab, the admin writes it up there as an event by hand (see
 
 Supersedes the 2026-08-02 server-side REST + webhook integration (`PROJECT_SPEC.md §8.2a/§14.2`
 record it as removed history). Restores, and is consistent with, the original 2026-07 design
-intent described in `.claude/reference/se-min-001-customer-meeting-1.md §3` ("she pointed us to
+intent described in the first customer meeting minutes §3` ("she pointed us to
 Calendly as the model to follow").

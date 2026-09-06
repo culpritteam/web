@@ -60,5 +60,5 @@ export interface StorageAdapter {
 set, else a `NoopStorageAdapter` that logs and returns a typed `IntegrationError` instead of
 crashing — dev/test boot cleanly without R2 configured. **There is no `STORAGE_DRIVER` env
 toggle** between R2 and Supabase Storage — the original design's dual-adapter factory
-(`.claude/skills/fullstack-nextjs-starter/references/integrations.md`) was never built that way;
+(per the original implementation guide) was never built that way;
 R2 is the only adapter that exists today besides the no-op.

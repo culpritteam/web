@@ -26,7 +26,7 @@ const photoUrlSchema = httpUrl.min(1);
  * ID, and stores the *normalised ID* — parsing at the boundary means the render path never has to
  * cope with five URL shapes, and a non-YouTube URL is rejected here rather than silently rendering
  * an empty embed. YouTube is the project's only video host: no video file is stored or proxied
- * (see modules/integrations/youtube and the free-tier constraint in CLAUDE.md).
+ * (see modules/integrations/youtube and the project's free-tier constraint).
  */
 const videoRefSchema = z
   .string()

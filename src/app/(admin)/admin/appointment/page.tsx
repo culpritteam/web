@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 // environment variable kept as the fallback when the column is blank.
 //
 // Still embed-only. Nothing server-side ever calls Calendly — no PAT, no REST client, no webhook
-// (ADR-011, CLAUDE.md). A booking made in the widget is never recorded locally; if it should show
+// (ADR-011). A booking made in the widget is never recorded locally; if it should show
 // on the public Events tab, it is written up there as an event.
 const PROFILE_SECTIONS = [
   {

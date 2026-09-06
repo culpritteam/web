@@ -59,7 +59,7 @@ publicly.
 
 ## Consequences
 
-- `CLAUDE.md`'s previous "records are never hard-deleted" rule is reversed for this specific,
+- The previous "records are never hard-deleted" rule is reversed for this specific,
   audited admin action; cancel (soft) and delete (hard) now coexist as distinct actions.
 - FR-22 (PROJECT_SPEC.md) rewritten to describe both cancel and delete.
 - FR-16 (toggle Upcoming Events visibility) moves from a global admin setting to a per-appointment

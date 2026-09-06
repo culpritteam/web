@@ -14,7 +14,7 @@ import { loginSchema, type LoginInput } from '../login.schema';
 // The single admin's sign-in form. Better Auth's client owns the credential exchange and sets the
 // httpOnly session cookie itself; this component only wires the form, surfaces the server's error
 // message, and redirects on success. The admin layout's server-side `requireAdmin()` check is the
-// actual gate (see CLAUDE.md) — this form is UX, not the security boundary.
+// actual gate — this form is UX, not the security boundary.
 export function LoginForm() {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);

@@ -13,13 +13,12 @@ related_decisions: []
 - **Major features** get a `feature/<name>` branch, merged back to `main` via PR (e.g.
   `feature/supabase-migration-and-site-rebuild`, merged via PR #1 — see `git log --merges`).
 - **Small fixes** stay on the current branch — no branch-per-typo.
-- This project's `CLAUDE.md` assigns branch/milestone planning to a `workflow-manager` subagent
-  role, which also breaks work into small, focused commits rather than one large commit per
-  feature.
+- Branch and milestone planning happens up front, and work is broken into small, focused commits
+  rather than one large commit per feature.
 
 ## Commit message convention
 
-Single-line, `<type>: <description>`, no bodies, no co-author trailers, per `CLAUDE.md`'s
+Single-line, `<type>: <description>`, no bodies, no co-author trailers, per the project's
 documented policy. **Observed types in `git log`** (all-time tally):
 
 | Type | Count |
@@ -31,7 +30,7 @@ documented policy. **Observed types in `git log`** (all-time tally):
 | `refactor` | 1 |
 | `ci` | 1 |
 
-**Contradiction:** `CLAUDE.md`'s subagent-routing table documents the allowed commit types as
+**Contradiction:** the documented policy lists the allowed commit types as
 **only** `feat\|fix\|build\|docs`, but actual history contains one `refactor:` commit (the most
 recent: "refactor: simplify appointments to admin-only, drop locale routing and i18n, adopt R2
 storage") and one `ci:` commit. Treat `feat/fix/build/docs` as the house style to follow when

@@ -24,7 +24,7 @@ Accepted (supersedes an earlier accepted design, in place through 2026-08-05)
 
 ## Context
 
-The original design (customer-requested per `.claude/reference/se-min-001-customer-meeting-1.md`
+The original design (customer-requested per the first customer meeting minutes
 and `se-min-002-team-meeting-1.md`) had visitors submit an appointment **request**, which the
 admin would **approve** or **decline**; on approval the admin manually booked the meeting in
 Calendly and marked it **booked**; every transition sent a notification email. This required a
@@ -67,13 +67,13 @@ public Upcoming Events tab), the admin re-enters it manually.
   apply — see `requirements/functional-requirements.md`.
 - The customer-approved minutes (SE-MIN-001 REQ-F-005: "request or book", implying approval) are
   now **conflicted** with the shipped app until the customer signs an amended requirement — see
-  `.claude/reference/se-min-001-customer-meeting-1.md#conflict-resolution-2026-08-08`. This ADR
+  the first customer meeting minutes, "conflict resolution 2026-08-08". This ADR
   does not resolve that customer-facing conflict; it only records the engineering decision that
-  was made and why the spec/CLAUDE.md side is being treated as current.
+  was made and why the spec side is being treated as current.
 
 ## Supersedes / Superseded by
 
 Supersedes the review-queue design recorded (as history) in `PROJECT_SPEC.md §5.2/§5.4/§7.1/§10.1`
-and in `.claude/skills/fullstack-nextjs-starter/references/{modules,data-model}.md` (which still
+and in the original implementation guide (which still
 describe the five-state machine — those skill docs were not updated after this ADR; see
 [Known contradictions](../README.md#known-contradictions--gaps)).

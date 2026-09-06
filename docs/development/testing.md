@@ -59,7 +59,7 @@ test** for `events-table.tsx`/`event-form-dialog.tsx`; that is a known gap.
 
 ## What no longer applies
 
-`.claude/skills/fullstack-nextjs-starter/references/testing.md` describes testing the old
+The original implementation guide describes testing the old
 five-state appointment machine (`approve`/`decline`/`book`), visitor self-cancel via token, and
 notification-email side effects on every transition — **none of that exists anymore**, and neither
 does the two-state machine that replaced it. Don't write tests against any appointment behavior;

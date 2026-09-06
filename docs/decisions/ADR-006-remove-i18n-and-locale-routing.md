@@ -62,13 +62,13 @@ routing/negotiation layer was cut, not the translation layer... all copy still g
 next-intl (`useTranslations`/`getTranslations` reading `messages/en.json`)". That did not match
 the shipped code: `package.json` has no `next-intl` dependency, no `messages/en.json` exists, and
 `src/app/layout.tsx`/`providers.tsx` explicitly state "no next-intl" in their own comments.
-`CLAUDE.md` ("English-only, no i18n library. next-intl was removed 2026-08-08") matched the code;
+The project rules ("English-only, no i18n library. next-intl was removed 2026-08-08") matched the code;
 the spec paragraph didn't. **Confirmed and corrected in place** — `PROJECT_SPEC.md §9.1` now
 states i18n was removed entirely.
 
 ## Supersedes / Superseded by
 
 Supersedes the original i18n-ready architecture described in
-`.claude/skills/fullstack-nextjs-starter/references/{architecture,ui-ux}.md` (both still describe
+the original implementation guide (which still describes
 `[locale]` routing and `next-intl` in detail — stale, see
 [Known contradictions](../README.md#known-contradictions--gaps)).

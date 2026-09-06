@@ -71,7 +71,6 @@ Run `npm run typecheck && npm run lint && npm test` before considering any chang
 
 - **[docs/README.md](docs/README.md)** — index of the `docs/` tree: architecture, requirements,
   ADRs (*why* decisions were made), deployment.
-- **[AGENTS.md](AGENTS.md)** — workflow for using `docs/` before/after making a change.
 - **[docs/decisions/](docs/decisions/)** — one ADR per significant decision. Read the relevant one
   before touching caching (ADR-007), rate limiting (ADR-008), or deployment (ADR-009).
 
@@ -89,7 +88,6 @@ Rendered status pages, published from this repo via GitHub Pages:
 [architecture](https://wyco68.github.io/CulpritWeb/architecture.html) ·
 [deployment](https://wyco68.github.io/CulpritWeb/deployment.html) ·
 [CI/CD & secrets](https://wyco68.github.io/CulpritWeb/cicd-secrets.html) ·
-[AI agents & docs](https://wyco68.github.io/CulpritWeb/ai-agents.html) ·
 [hosting cost](https://wyco68.github.io/CulpritWeb/hosting-cost.html).
 
 ## Deployment

@@ -1,7 +1,6 @@
 # Keep the spec site and internal docs OUT of the Vercel application build.
 # This guarantees the app never serves docs-site/PROJECT_SPEC.html as a page and never
-# ships internal documents. (.claude/ and CLAUDE.md are gitignored, so they
-# never reach Vercel anyway — listed here as defense in depth.)
+# ships internal documents.
 
 docs-site/
 PROJECT_SPEC.md
@@ -10,7 +9,3 @@ docs/internal/
 
 # GitHub Pages workflow is irrelevant to the app deploy
 .github/
-
-# AI tooling (belt-and-suspenders; already gitignored)
-.claude/
-CLAUDE.md

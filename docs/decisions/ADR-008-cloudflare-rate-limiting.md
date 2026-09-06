@@ -130,7 +130,7 @@ User
    window — weaker than a 1hr ban but non-trivial, and it's what Free actually allows.
 2. **No second Cloudflare Rate Limiting Rule** — Free plan doesn't have one to spend. Considered
    and rejected: upgrading to Cloudflare Pro ($20/mo) for 10 rules — out of scope for a
-   free-tier-only project (CLAUDE.md) without a demonstrated traffic problem justifying the cost.
+   free-tier-only project without a demonstrated traffic problem justifying the cost.
 3. **No Cloudflare Worker.** Evaluated per the task's own priority order (WAF rules -> other
    native features -> Worker -> app-level) and rejected: the two remaining categories
    (`turnstile/verify`, admin mutations) are both already defended by something other than rate

@@ -8,7 +8,7 @@ related_decisions: []
 
 # Project knowledge base — "The Culprit"
 
-This tree exists for **AI coding agents** (and humans) to retrieve current project context before
+This tree exists so anyone working on the project can retrieve current context before
 making changes. It is not user-facing — it ships nothing to the public website and adds no runtime
 dependency to the app.
 
@@ -17,12 +17,12 @@ dependency to the app.
 | Document | Role |
 |---|---|
 | [`PROJECT_SPEC.md`](../PROJECT_SPEC.md) (repo root) | **Primary narrative source of truth.** Full requirements, data model, API, workflows, with inline history (strikethrough + dated notes) preserved. When `docs/` and the spec disagree on a fact, the spec wins — unless a specific contradiction below says otherwise. |
-| `docs/requirements/*` | Current-only distilled view of the spec's functional/non-functional requirements and scope — for fast agent lookup, not a replacement for §5/§6/§3 of the spec. |
+| `docs/requirements/*` | Current-only distilled view of the spec's functional/non-functional requirements and scope — for fast lookup, not a replacement for §5/§6/§3 of the spec. |
 | `docs/architecture/*` | The **actual shipped architecture**, verified against `src/`, `prisma/schema.prisma`, and `package.json` — not an idealized design. |
 | `docs/decisions/ADR-*` | One record per significant architectural decision: context, alternatives, consequences, and what it supersedes. **Authoritative for "why"** — `source_of_truth: true` in frontmatter. |
 | `docs/development/*`, `docs/deployment/*` | Conventions and operational notes, cross-checked against actual scripts/config/git history. |
-| `.claude/reference/*` | Raw customer/team meeting minutes (controlled documents) — historical record of what was *asked for*, with conflict-resolution notes where the shipped app diverged. |
-| `.claude/skills/fullstack-nextjs-starter/references/*` | The **original implementation guide** — see [Known contradictions](#known-contradictions--gaps). Partially stale; do not treat as current without cross-checking `docs/architecture/`. |
+| Customer/team meeting minutes (kept privately, not in this repo) | Raw controlled documents — historical record of what was *asked for*, with conflict-resolution notes where the shipped app diverged. |
+| The original implementation guide (kept privately, not in this repo) | See — see [Known contradictions](#known-contradictions--gaps). Partially stale; do not treat as current without cross-checking `docs/architecture/`. |
 
 ## Current vs. historical — the rule
 
@@ -63,8 +63,8 @@ the history inline. Concretely:
   [ADR-013](decisions/ADR-013-doppler-secrets-across-environments.md). Do not add a new env var to
   only one of those places.
 - **Event video is a YouTube embed, never an uploaded file.** Photos go to R2; video does not, and
-  must not — see [ADR-011](decisions/ADR-011-events-replace-appointments.md) and the free-tier rule
-  in `CLAUDE.md`.
+  must not — see [ADR-011](decisions/ADR-011-events-replace-appointments.md) and the project's
+  free-tier rule.
 
 If a document you're reading (including this tree) doesn't clearly say "current," check its
 frontmatter `status:` field and its `last_updated` date before relying on it.
@@ -84,22 +84,21 @@ related_decisions: [...]         # ADR IDs this doc depends on or explains
 ## Known contradictions / gaps
 
 Found while building this documentation system (2026-08-08). Not silently fixed — flagged here so
-an agent doesn't trust the wrong source, and a human can decide what (if anything) to correct.
+nobody trusts the wrong source, and a maintainer can decide what (if anything) to correct.
 
 1. ~~`PROJECT_SPEC.md §9.1` i18n claim was stale~~ — **fixed 2026-08-08**: the paragraph claiming
    "only the routing layer was cut, copy still goes through next-intl" was corrected in place to
-   match the code and `CLAUDE.md` (i18n removed entirely — no `next-intl` dependency, no
+   match the code and the project rules (i18n removed entirely — no `next-intl` dependency, no
    `messages/`, no `src/i18n/`). See
    [ADR-006](decisions/ADR-006-remove-i18n-and-locale-routing.md).
-2. **`.claude/skills/fullstack-nextjs-starter/references/{architecture,modules,data-model,security,integrations,ui-ux}.md`
-   describe a superseded design**, not the shipped app: `[locale]` routing + next-intl, a
+2. **The original implementation guide's architecture, modules, data-model, security,
+   integrations and UI/UX chapters describe a superseded design**, not the shipped app: `[locale]` routing + next-intl, a
    `notifications` module, a five-state appointment machine with `approve`/`decline`/`book` (there
    is no appointment machine at all now — see
    [ADR-011](decisions/ADR-011-events-replace-appointments.md)), a
    `STORAGE_DRIVER=r2|supabase` toggle between two storage adapters, and a `middleware.ts`-based
    admin gate. None of that exists in `src/` today. `docs/architecture/*` and the ADRs in this
-   tree are the corrected replacement; the skill's reference files were not updated after the
-   2026-08-08 rewrite.
+   tree are the corrected replacement; that guide was not updated after the 2026-08-08 rewrite.
 3. ~~No `middleware.ts` exists anywhere in the project~~ — **partially superseded 2026-08-10**:
    `src/middleware.ts` now exists, added by
    [ADR-008](decisions/ADR-008-cloudflare-rate-limiting.md) as a rate-limit fallback on
@@ -108,14 +107,13 @@ an agent doesn't trust the wrong source, and a human can decide what (if anythin
    `src/app/(admin)/admin/layout.tsx` (pages) and inside each admin route handler (API). See
    [architecture/authentication.md](architecture/authentication.md).
 4. **Audit-log writes happen in the repository layer, not the service layer**, contradicting the
-   skill docs' explicit claim ("written in the service layer... not in repositories"). Verified
+   original guide's explicit claim ("written in the service layer... not in repositories"). Verified
    across all seven repositories that mutate state. See
    [architecture/overview.md](architecture/overview.md#layers).
-5. ~~`CLAUDE.md`'s admin-app description listed "Audit log"~~ — **resolved 2026-08-08**: no viewer
-   is planned. `CLAUDE.md` was corrected to drop it from the admin-app description; `AuditLog`
-   stays a backend-only audit trail (written by every mutating repository), never a user-facing
-   page. See `CLAUDE.md`'s opening paragraph.
-6. **`CLAUDE.md`'s commit-type policy (`feat|fix|build|docs` only)** doesn't fully match `git log`:
+5. ~~The project rules' admin-app description listed "Audit log"~~ — **resolved 2026-08-08**: no
+   viewer is planned. The description was corrected to drop it; `AuditLog` stays a backend-only
+   audit trail (written by every mutating repository), never a user-facing page.
+6. **The commit-type policy (`feat|fix|build|docs` only)** doesn't fully match `git log`:
    one `refactor:` and one `ci:` commit exist alongside 74 commits that do follow the rule. Minor;
    noted in [development/git-workflow.md](development/git-workflow.md).
 7. **Minor code-comment staleness**: `src/modules/integrations/index.ts`'s header comment still
@@ -125,5 +123,4 @@ an agent doesn't trust the wrong source, and a human can decide what (if anythin
 ## Retrieval
 
 `npm run docs:search -- "<query>"` — see the script header in `scripts/docs-search.mjs` for how
-scoring works. Also see [`AGENTS.md`](../AGENTS.md) (repo root) for the full before/after-code-change
-workflow this system is meant to support.
+scoring works.

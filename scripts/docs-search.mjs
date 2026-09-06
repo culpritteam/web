@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Local, dependency-free retrieval over the project's Markdown knowledge base — for AI coding
-// agents (see AGENTS.md) and humans alike. No vector DB, no external service: this is a
-// keyword/section index rebuilt in memory on every run (docs are small; there's nothing to cache).
+// Local, dependency-free retrieval over the project's Markdown knowledge base. No vector DB, no
+// external service: this is a keyword/section index rebuilt in memory on every run (docs are
+// small; there's nothing to cache).
 //
 // Design contract, so this stays swappable later without touching call sites:
 //   1. `loadCorpus()`      -> Section[]   (read-only; never writes to any source doc)
@@ -13,7 +13,6 @@
 // Usage:
 //   npm run docs:search -- "appointment workflow"
 //   node scripts/docs-search.mjs "why postgres" --json --limit=5
-//   node scripts/docs-search.mjs "old calendly integration" --include-superseded
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';
@@ -21,12 +20,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-// Default corpus: the curated knowledge base. `.claude/skills/**` is excluded by default because
-// docs/README.md#known-contradictions--gaps documents it as partially superseded — surfacing it
-// ahead of current docs would defeat the "current over obsolete" goal. Pass --include-superseded
-// to search it anyway (useful for "what did we originally plan" questions).
-const DEFAULT_SOURCES = ['docs', 'PROJECT_SPEC.md', 'CLAUDE.md', 'AGENTS.md', '.claude/reference'];
-const SUPERSEDED_SOURCES = ['.claude/skills/fullstack-nextjs-starter/references'];
+// Default corpus: the curated knowledge base.
+const DEFAULT_SOURCES = ['docs', 'PROJECT_SPEC.md'];
 
 const HISTORY_SIGNAL_WORDS = new Set([
   'history', 'historical', 'old', 'previous', 'before', 'originally', 'replaced', 'removed',
@@ -109,7 +104,7 @@ function loadCorpus(sourcePaths) {
       const { body, meta } = parseFrontmatter(raw);
       const { title, sections: fileSections } = splitSections(body, file);
       const relPath = relative(ROOT, file).replace(/\\/g, '/');
-      const status = meta.status ?? (sourcePaths === SUPERSEDED_SOURCES ? 'historical' : 'unspecified');
+      const status = meta.status ?? 'unspecified';
       for (const s of fileSections) {
         sections.push({
           path: relPath,
@@ -178,18 +173,13 @@ function snippet(text, queryTokens, maxLen = 160) {
   return (start > 0 ? '…' : '') + excerpt + (start + maxLen < clean.length ? '…' : '');
 }
 
-function search(query, { limit = 8, includeSuperseded = false } = {}) {
+function search(query, { limit = 8 } = {}) {
   const queryTokens = tokenize(query).filter((t) => !STOPWORDS.has(t));
   if (queryTokens.length === 0) return [];
   const historyIntent = tokenize(query).some((t) => HISTORY_SIGNAL_WORDS.has(t)) ||
     HISTORY_SIGNAL_WORDS.has(query.toLowerCase());
 
-  const sources = includeSuperseded ? [...DEFAULT_SOURCES, ...SUPERSEDED_SOURCES] : DEFAULT_SOURCES;
-  const corpus = [
-    ...loadCorpus(DEFAULT_SOURCES),
-    ...(includeSuperseded ? loadCorpus(SUPERSEDED_SOURCES) : []),
-  ];
-  void sources;
+  const corpus = loadCorpus(DEFAULT_SOURCES);
 
   const scored = corpus
     .map((section) => ({ section, score: scoreSection(queryTokens, query, section, { historyIntent }) }))
@@ -217,15 +207,14 @@ function main() {
   const limitFlag = [...flags].find((f) => f.startsWith('--limit='));
   const limit = limitFlag ? Number(limitFlag.split('=')[1]) || 8 : 8;
   const asJson = flags.has('--json');
-  const includeSuperseded = flags.has('--include-superseded');
 
   if (!query) {
-    console.error('Usage: npm run docs:search -- "<query>" [--json] [--limit=N] [--include-superseded]');
+    console.error('Usage: npm run docs:search -- "<query>" [--json] [--limit=N]');
     process.exitCode = 1;
     return;
   }
 
-  const results = search(query, { limit, includeSuperseded });
+  const results = search(query, { limit });
 
   if (asJson) {
     console.log(JSON.stringify({ query, results }, null, 2));
@@ -233,7 +222,7 @@ function main() {
   }
 
   if (results.length === 0) {
-    console.log(`No matches for "${query}". Try --include-superseded, or fewer/broader terms.`);
+    console.log(`No matches for "${query}". Try fewer/broader terms.`);
     return;
   }
 

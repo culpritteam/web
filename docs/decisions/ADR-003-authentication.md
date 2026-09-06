@@ -39,7 +39,7 @@ through a public form.
   have meant migrating working auth for no functional gain.
 - **JWT-based sessions** — not adopted anywhere in the project. DB-backed cookie sessions were
   chosen instead specifically so a session can be revoked server-side instantly (JWTs remain valid
-  until expiry regardless of server-side state) — this is stated as a hard rule in `CLAUDE.md`
+  until expiry regardless of server-side state) — this is stated as a hard project rule
   ("Better Auth secure cookie sessions, single admin, no JWT").
 
 ## Consequences

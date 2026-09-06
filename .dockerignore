@@ -2,15 +2,7 @@
 .git
 .github
 
-# AI tooling / internal docs — never ship
-.claude
-.claude*
-.agents
-.impeccable
-CLAUDE.md
-AGENTS.md
-.mcp.json
-skills-lock.json
+# Internal docs — never ship
 PROJECT_SPEC.md
 docs-site
 docs

@@ -1,7 +1,6 @@
 # The Culprit — Technology Stack
 
-Matches what's actually running today, not the original plan. See [CLAUDE.md](CLAUDE.md) and
-[PROJECT_SPEC.md](PROJECT_SPEC.md) for the full picture.
+Matches what's actually running today, not the original plan. See [PROJECT_SPEC.md](PROJECT_SPEC.md) for the full picture.
 
 ---
 

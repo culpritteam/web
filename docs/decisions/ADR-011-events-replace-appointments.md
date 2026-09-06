@@ -49,7 +49,7 @@ Remove appointments outright and replace them with a plain `Event` content type.
 3. **Every event is public.** There is no draft state and no visibility toggle to keep in sync.
 4. **Photos** are uploaded to the existing R2 `events` bucket via `POST /api/admin/events/photo`,
    one random object key per upload. **Videos are YouTube embeds only** — an event stores a parsed
-   11-character video ID, never an uploaded video file (see the free-tier rule in `CLAUDE.md`; the
+   11-character video ID, never an uploaded video file (see the project's free-tier rule; the
    previously unused `integrations/youtube` module is what renders them).
 5. **The `appointment` table and `AppointmentStatus` enum are dropped**, and every appointment row
    with them. The public **Make Appointment** tab and its Calendly embed are untouched.
@@ -75,7 +75,7 @@ Remove appointments outright and replace them with a plain `Event` content type.
 - **Irreversible data loss, by request.** The migration drops `appointment` with no export step.
   The `AuditLog` rows for those appointments are deliberately left in place as the only remaining
   record that they existed.
-- `CLAUDE.md`'s appointment-lifecycle rules (service-enforced transitions, 409 on illegal
+- The previous appointment-lifecycle rules (service-enforced transitions, 409 on illegal
   transitions, soft cancel vs hard delete) no longer apply to anything — there is no lifecycle left
   in the codebase.
 - `src/modules/shared/ui/status-pill.tsx` is deleted; it existed only for appointment status and

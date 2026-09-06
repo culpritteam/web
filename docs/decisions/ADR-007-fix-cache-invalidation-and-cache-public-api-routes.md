@@ -88,7 +88,7 @@ finer-grained invalidation, or fronting reads with Upstash Redis as an app-level
 rejected as new infrastructure the project doesn't need: `revalidatePath` per-route already gives
 exact invalidation (no over-purging — each area maps to precisely the routes it feeds), the
 project is Vercel + Supabase only (see `docs/deployment/deployment.md`) with a hard free-tier-only
-constraint (see `CLAUDE.md`), and Upstash Redis in this project is scoped to rate limiting only —
+constraint (see the project rules), and Upstash Redis in this project is scoped to rate limiting only —
 repurposing it as an app cache would blur that boundary for no measured benefit. A cache-tag layer
 would add real complexity (tag naming, `unstable_cache` wrapping) to solve a problem `revalidatePath`
 already solves at the current scale (a handful of public routes, single admin, low write volume).
@@ -109,7 +109,7 @@ not a breaking change for anything that ships with the app.
 Correction to an earlier draft of this addendum: it claimed "the spec doesn't promise API
 stability for this optional filter." That was false — `PROJECT_SPEC.md` (and its `.html` render)
 did document `GET /api/team-members ... Optional ?groupId= filter` as a stable row, and
-CLAUDE.md is explicit that the spec wins over instinct. This was, honestly, a deliberate
+The project rules are explicit that the spec wins over instinct. This was, honestly, a deliberate
 spec-breaking change to the request shape, accepted because this is a personal academic site with
 no real external API consumers of this optional filter (only this repo's own — now-removed —
 internal caller of the query-string form, per the grep above). Two things keep it from being a

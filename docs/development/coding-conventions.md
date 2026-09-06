@@ -33,7 +33,7 @@ map `Result` to a response. See [architecture/overview.md](../architecture/overv
 ## Validation (Zod)
 
 One schema per module (`<module>.schema.ts`), used both by the RHF client resolver and the server
-boundary parse. The server always re-parses — the client copy is UX only, per `CLAUDE.md`
+boundary parse. The server always re-parses — the client copy is UX only, per the project rules
 ("server-side Zod validation at every boundary; the client copy is UX, the server is truth").
 
 ## Result & error handling

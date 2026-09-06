@@ -34,7 +34,7 @@ depends on it breaks. The `stg` and `prd` Doppler configs existed but were empty
 only ever doing a quarter of the job it was adopted for.
 
 The specific question was whether Doppler could also drive the VPS, given the free-tier-only rule
-(see CLAUDE.md). Verified 2026-09-06 with CLI v3.76.1 against this workplace:
+(see the project rules). Verified 2026-09-06 with CLI v3.76.1 against this workplace:
 
 - Service tokens are available — `doppler configs tokens --project culprit --config prd` is
   permitted and returns an (empty) list, so the read-only, per-config, revocable token the VPS

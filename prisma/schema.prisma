@@ -36,7 +36,7 @@ model Profile {
   googleScholarUrl    String?  @map("google_scholar_url")
   /// The scheduling link the public Make Appointment tab embeds. Previously readable only from
   /// NEXT_PUBLIC_CALENDLY_URL, which the admin cannot change without a redeploy. Embed-only —
-  /// nothing server-side ever calls Calendly (ADR-011, CLAUDE.md).
+  /// nothing server-side ever calls Calendly (ADR-011).
   calendlyUrl         String?  @map("calendly_url")
   /// Standfirst prose for the public tabs that had none. See the comment block above.
   publicationsIntro   String?  @map("publications_intro") @db.Text

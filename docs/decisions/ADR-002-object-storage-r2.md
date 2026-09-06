@@ -22,7 +22,7 @@ Object storage was always architecturally separate from the relational database 
 (`Profile.photoUrl`, `TeamMember.photoUrl`) only ever stores a URL/reference, never binary data,
 per the standing project convention "never store binaries in Postgres; serve from an object
 store/CDN, not through the app process" (documented in
-`.claude/skills/fullstack-nextjs-starter/references/security.md`, "Secure file uploads"). That
+the original implementation guide, "Secure file uploads"). That
 separation itself isn't dated to a specific decision — it's the default assumption in every
 version of the architecture diagram — so treat "why is storage separate from the DB at all" as
 **reason not documented beyond that general principle**.

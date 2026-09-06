@@ -3,7 +3,7 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 
 // Provisions the single admin account from ADMIN_EMAIL/ADMIN_INITIAL_PASSWORD (PROJECT_SPEC
-// §5.3/FR-13, CLAUDE.md: "Better Auth secure cookie sessions, single admin"). The app's own
+// §5.3/FR-13: "Better Auth secure cookie sessions, single admin"). The app's own
 // `auth` instance (src/modules/auth/auth.ts) has `disableSignUp: true` — sign-up is deliberately
 // unreachable from any route. This script builds a throwaway instance with sign-up enabled,
 // purely to call Better Auth's own password-hashing/account-creation path instead of

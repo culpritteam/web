@@ -38,7 +38,7 @@ generic). Option A (Postgres) was adopted; Option B's **D1 (SQLite)** was evalua
 hosting-package level and **not taken** for the database specifically.
 
 **Reason not documented in the available project history:** no document in this repository
-(`PROJECT_SPEC.md`, `CLAUDE.md`, the meeting minutes in `.claude/reference/`, or the hosting-cost
+(`PROJECT_SPEC.md`, the project rules, the customer meeting minutes, or the hosting-cost
 review) explicitly weighs PostgreSQL against a non-relational store like MongoDB. The spec treats
 a relational database as the assumed default from the very first stack-agnostic draft (Option C:
 "Any relational DB") without recording that comparison — do not invent a justification (e.g.

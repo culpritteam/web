@@ -1,16 +1,4 @@
 # ─────────────────────────────────────────────────────────────
-#  Claude Code / AI tooling — NEVER COMMIT, under any condition
-# ─────────────────────────────────────────────────────────────
-.claude/
-.claude*/
-CLAUDE.md
-**/CLAUDE.md
-.mcp.json
-.cursor/
-.aider*
-.impeccable/
-
-# ─────────────────────────────────────────────────────────────
 #  Internal documents — keep private (NOT for deployment)
 #  These stay on your machine unless you explicitly decide to push.
 # ─────────────────────────────────────────────────────────────

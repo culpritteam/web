@@ -9,7 +9,7 @@ related_decisions: [ADR-001, ADR-002, ADR-003, ADR-004, ADR-005, ADR-006, ADR-00
 # Architecture overview
 
 > Verified against the actual codebase (`src/`, `prisma/schema.prisma`, `package.json`) as of
-> 2026-08-08, not against the idealized design in `.claude/skills/fullstack-nextjs-starter/`
+> 2026-08-08, not against the idealized design in the original implementation guide
 > (which predates several of these changes — see [Known contradictions](../README.md#known-contradictions--gaps)).
 
 ## Stack (adopted, running)
@@ -48,10 +48,10 @@ Data flows one direction; each layer depends only on the one below it.
 
 **Deviation from the original design doc:** the audit-log write happens **inside the repository**
 (`createWithAudit`/`updateWithAudit`, same DB transaction as the mutation), not in the service
-layer as `.claude/skills/fullstack-nextjs-starter/references/{data-model,security}.md` describe.
+layer as the original implementation guide describes.
 Verified across every repository that mutates state (`event`, `research`, `publications`,
 `profile`, `research-group`, `team-member`). This is intentional — it makes the audit
-entry atomic with the mutation — but it means "no business logic in repositories" (CLAUDE.md) does
+entry atomic with the mutation — but it means "no business logic in repositories" does
 not extend to "no audit writes in repositories."
 
 ## Module boundaries (`src/modules/*`)

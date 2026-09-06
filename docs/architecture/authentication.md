@@ -59,7 +59,7 @@ if (!session.ok) redirect('/login');
 Every page under `/admin/*` is a child of this layout, so one `requireAdmin()` call guards the
 whole section, re-evaluated on every navigation (Server Components aren't cached the way a
 client-side route guard would be). This differs from
-`.claude/skills/fullstack-nextjs-starter/references/security.md`'s description of a
+the original implementation guide's description of a
 `middleware.ts`-based gate "re-checked" in each handler as a second layer — in the shipped app,
 the layout check **is** the only server-side gate for admin **page** routes; admin **API routes**
 additionally call `requireAdmin()` themselves (see `architecture/backend.md`), so the "re-check at
