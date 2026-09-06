@@ -31,12 +31,15 @@ export function PublicationFormDialog({
   onOpenChange,
   publication,
   members,
+  owner,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   publication?: Publication;
   /** Everyone who can be credited. Passed down from the server page — this dialog reads nothing. */
   members: BylinePerson[];
+  /** How the professor is credited on her own work, from `Profile.citationName`. */
+  owner?: { citationName: string } | null;
 }) {
   const router = useRouter();
   const isEdit = Boolean(publication);
@@ -53,7 +56,12 @@ export function PublicationFormDialog({
       title: publication?.title ?? '',
       // Only the two fields that get sent back — id and sortOrder are the repository's business,
       // and sortOrder is re-derived from this array's own order on save.
-      authors: publication?.authors.map(({ teamMemberId, name }) => ({ teamMemberId, name })) ?? [],
+      authors:
+        publication?.authors.map(({ teamMemberId, name, isProfileOwner }) => ({
+          teamMemberId,
+          name,
+          isProfileOwner,
+        })) ?? [],
       venue: publication?.venue ?? '',
       year: publication?.year ?? new Date().getFullYear(),
       link: publication?.link ?? '',
@@ -100,6 +108,7 @@ export function PublicationFormDialog({
               value={field.value ?? []}
               onChange={field.onChange}
               members={members}
+              owner={owner}
               externalLabel="Add an outside co-author"
               emptyHint="No authors listed — this will show as your own work."
             />

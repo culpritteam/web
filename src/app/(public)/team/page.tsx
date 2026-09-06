@@ -26,7 +26,9 @@ export default async function TeamPage() {
   // third read is the request-scoped profile the layout already made, for the editable intro.
   const [groupsResult, ungroupedResult, profileResult] = await Promise.all([
     getResearchGroupService().list(),
-    getTeamMemberService().list({ ungroupedOnly: true }),
+    // `visibleOnly` keeps byline-only research collaborators off this tab. They are ungrouped
+    // team_member rows that exist so a publication byline can point at one record per person.
+    getTeamMemberService().list({ ungroupedOnly: true, visibleOnly: true }),
     getProfileCached(),
   ]);
 

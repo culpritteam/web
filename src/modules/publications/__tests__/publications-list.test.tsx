@@ -11,6 +11,7 @@ const author = (name: string, sortOrder: number) => ({
   id: `a${sortOrder}`,
   teamMemberId: null,
   name,
+  isProfileOwner: false,
   sortOrder,
 });
 
@@ -39,6 +40,32 @@ describe('PublicationsList', () => {
     );
 
     expect(screen.getByText('A. Osei, R. Lindqvist, T. Meyer')).toBeInTheDocument();
+  });
+
+  it('renders the live citation name on the professor own row, not the stored snapshot', () => {
+    // The snapshot is deliberately stale here. Her row must follow Profile.citationName so that
+    // changing it once re-credits every paper, rather than leaving old rows disagreeing.
+    render(
+      <PublicationsList
+        citationName="J. Jaimunk"
+        items={[
+          publication({
+            authors: [
+              {
+                id: 'a0',
+                teamMemberId: null,
+                name: 'STALE NAME',
+                isProfileOwner: true,
+                sortOrder: 0,
+              },
+              author('M. Fernandez', 1),
+            ],
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('J. Jaimunk, M. Fernandez')).toBeInTheDocument();
   });
 
   it('renders no byline at all when nobody is credited', () => {

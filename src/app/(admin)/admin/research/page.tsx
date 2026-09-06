@@ -56,6 +56,11 @@ export default async function AdminResearchPage() {
             ? membersResult.data.map(({ id, name, role }) => ({ id, name, role }))
             : []
         }
+        owner={
+          profileResult.ok && profileResult.data?.citationName
+            ? { citationName: profileResult.data.citationName }
+            : null
+        }
       />
     </AdminScreen>
   );

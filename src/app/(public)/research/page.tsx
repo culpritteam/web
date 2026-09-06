@@ -32,6 +32,7 @@ export default async function ResearchPage() {
 
   const entryGroups = groupBySection(entriesResult.ok ? entriesResult.data : [], RESEARCH_SECTIONS);
   const researchStatement = profileResult.ok ? profileResult.data?.researchStatement : null;
+  const citationName = profileResult.ok ? profileResult.data?.citationName : null;
   const works = result.ok ? result.data : [];
   const hasIntro = Boolean(researchStatement) || entryGroups.length > 0;
   const isEmpty = !hasIntro && works.length === 0;
@@ -73,7 +74,7 @@ export default async function ResearchPage() {
 
           {works.length > 0 && (
             <section id="works" aria-label="Research works">
-              <ResearchList items={works} />
+              <ResearchList items={works} citationName={citationName} />
             </section>
           )}
         </div>

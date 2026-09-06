@@ -20,7 +20,14 @@ function groupByArea(items: Research[]): { area: string; items: Research[] }[] {
   return [...groups].map(([area, grouped]) => ({ area, items: grouped }));
 }
 
-export function ResearchList({ items }: { items: Research[] }) {
+export function ResearchList({
+  items,
+  citationName,
+}: {
+  items: Research[];
+  /** `Profile.citationName` — see the note in publications-list.tsx. */
+  citationName?: string | null;
+}) {
   const groups = groupByArea(items);
 
   return (
@@ -54,7 +61,14 @@ export function ResearchList({ items }: { items: Research[] }) {
                 {/* Omitted entirely when nobody is credited — that means it is his own work. */}
                 {item.contributors.length > 0 && (
                   <p className="mt-2 text-sm text-muted-foreground">
-                    With {item.contributors.map((contributor) => contributor.name).join(', ')}
+                    With{' '}
+                    {item.contributors
+                      .map((contributor) =>
+                        contributor.isProfileOwner && citationName
+                          ? citationName
+                          : contributor.name,
+                      )
+                      .join(', ')}
                   </p>
                 )}
 

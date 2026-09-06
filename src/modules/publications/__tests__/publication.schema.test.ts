@@ -113,6 +113,22 @@ describe('createPublicationSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  // Mirrors the partial unique index on publication_author. She is one person; two owner rows on
+  // one paper is a data error the admin should see as a sentence, not a constraint violation.
+  it('rejects the professor being credited twice on one publication', () => {
+    const result = createPublicationSchema.safeParse({
+      title: 'X',
+      authors: [
+        { name: 'J. Jaimunk', isProfileOwner: true },
+        { name: 'J. Jaimunk', isProfileOwner: true },
+      ],
+      venue: 'Z',
+      year: 2024,
+      link: 'https://example.com',
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('rejects an over-length author name', () => {
     const result = createPublicationSchema.safeParse({
       title: 'X',

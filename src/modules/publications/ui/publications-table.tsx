@@ -24,10 +24,12 @@ import { PublicationFormDialog } from './publication-form-dialog';
 export function PublicationsTable({
   items,
   members = [],
+  owner,
 }: {
   items: Publication[];
   /** Everyone creditable, for the author picker. Defaults to none so the table renders alone. */
   members?: BylinePerson[];
+  owner?: { citationName: string } | null;
 }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Publication | undefined>(undefined);
@@ -112,6 +114,7 @@ export function PublicationsTable({
         onOpenChange={setFormOpen}
         publication={editing}
         members={members}
+        owner={owner}
       />
 
       <ConfirmDialog

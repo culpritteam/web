@@ -9,6 +9,8 @@ import { entityId, optionalUrl, safeText, sortOrder } from '@/modules/shared/lib
 const researchContributor = z.object({
   teamMemberId: entityId.nullable().optional(),
   name: safeText(200),
+  /** Marks the professor's own row — see `publication.schema.ts`. */
+  isProfileOwner: z.boolean().optional().default(false),
 });
 
 /** Empty means the professor's own solo work; nothing is stored to represent him. */
@@ -19,6 +21,9 @@ const contributorList = z
     const linked = rows.map((row) => row.teamMemberId).filter(Boolean);
     if (new Set(linked).size !== linked.length) {
       ctx.addIssue({ code: 'custom', message: 'Someone is listed twice.' });
+    }
+    if (rows.filter((row) => row.isProfileOwner).length > 1) {
+      ctx.addIssue({ code: 'custom', message: 'You are listed twice.' });
     }
   });
 
