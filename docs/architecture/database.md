@@ -1,9 +1,9 @@
 ---
 status: current
 source_of_truth: false
-last_updated: 2026-08-13
+last_updated: 2026-09-06
 related_modules: [events, teaching, profile, research, publications, research-groups, auth]
-related_decisions: [ADR-001, ADR-004, ADR-010]
+related_decisions: [ADR-001, ADR-004, ADR-010, ADR-015]
 ---
 
 # Database
@@ -30,8 +30,10 @@ related_decisions: [ADR-001, ADR-004, ADR-010]
 | `Profile` | Singleton professor bio | Identity and prose only: name, title, photo, bio, position, research statement, `linkedinUrl`/`googleScholarUrl`. The seven `Json` list columns moved to `cv_entry` on 2026-09-02 ([ADR-012](../decisions/ADR-012-cv-entries-and-courses.md)). |
 | `CvEntry` | CV lines, tagged by `section` | One table with a `CvSection` discriminator, not seven — every section carries the same four fields. Five sections render on About, two on Teaching. |
 | `Course` | Taught courses | Backs the Teaching tab, grouped by free-text `level`. |
-| `Research` | Research works | `link` nullable. |
-| `Publication` | Publications | `link` nullable (conference/book-chapter entries often have no stable URL). |
+| `Research` | Research works | `link` nullable. Contributors are `ResearchContributor` rows, not a column. |
+| `Publication` | Publications | `link` nullable (conference/book-chapter entries often have no stable URL). The free-text `authors` column was **removed** 2026-09-06 ([ADR-015](../decisions/ADR-015-attribution-rows.md)) — replaced by `PublicationAuthor` rows. |
+| `PublicationAuthor` | Credited authors, in citation order | Join row: cascade from `Publication`, nullable `teamMemberId` (`onDelete: SetNull`), and a `name` snapshot that is what renders. **Zero rows means the professor's own solo work** — the reason attribution is rows rather than nullable columns. |
+| `ResearchContributor` | Credited contributors | Same shape as `PublicationAuthor`; `sortOrder` is display order only, with no citation meaning. |
 | `ResearchGroup` | Research groups | Has-many `TeamMember`. `members` JSON blob was **removed** — replaced by the relational entity below. |
 | `TeamMember` | Researchers & visiting professors | `researchGroupId` nullable FK (`onDelete: SetNull`) — a member may be unaffiliated. |
 | `Event` | Admin-authored events on the public Events tab | See below. |
@@ -82,8 +84,16 @@ erDiagram
     PROFILE ||--o{ PUBLICATION : "has"
     PROFILE ||--o{ RESEARCHGROUP : "leads"
     RESEARCHGROUP ||--o{ TEAMMEMBER : "has (optional)"
+    PUBLICATION ||--o{ PUBLICATIONAUTHOR : "credited to"
+    RESEARCH ||--o{ RESEARCHCONTRIBUTOR : "worked on by"
+    TEAMMEMBER |o--o{ PUBLICATIONAUTHOR : "soft link (optional)"
+    TEAMMEMBER |o--o{ RESEARCHCONTRIBUTOR : "soft link (optional)"
     ADMIN ||--o{ EVENT : "publishes"
 ```
+
+Both attribution relationships are optional on both sides: an item with zero rows is the
+professor's own solo work, and a row with no `teamMemberId` is an outside collaborator who exists
+only as a name (2026-09-06, [ADR-015](../decisions/ADR-015-attribution-rows.md)).
 
 There is no `Setting` model (deleted 2026-08-13, ADR-010) and no `Appointment` model (deleted
 2026-09-01, ADR-011). Nothing gates event visibility: every event is public.

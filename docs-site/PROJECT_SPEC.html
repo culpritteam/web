@@ -261,15 +261,42 @@
     <tr><td>link</td><td><code>string</code></td><td>nullable — optional external link: project page, tool listing, artefact repo <em>(added 2026-08-08)</em></td></tr>
     <tr><td>sort_order</td><td><code>int</code></td><td>display order</td></tr>
   </table></div>
+  <blockquote><strong>Note (2026-09-06, ADR-015):</strong> contributors are
+  <code>ResearchContributor</code> rows, not a column. A research item with no rows is the
+  professor's own solo work and renders no byline.</blockquote>
   <h4>Publication</h4>
   <div class="twrap"><table>
     <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
     <tr><td>id</td><td><code>uuid</code></td><td>PK</td></tr>
     <tr><td>title</td><td><code>string</code></td><td></td></tr>
-    <tr><td>authors</td><td><code>string</code></td><td></td></tr>
+    <tr><td><del>authors</del></td><td><del><code>string</code></del></td><td><strong>removed</strong> <em>(changed 2026-09-06, ADR-015)</em> — replaced by <code>PublicationAuthor</code> rows</td></tr>
     <tr><td>venue</td><td><code>string</code></td><td>journal / conference</td></tr>
     <tr><td>year</td><td><code>int</code></td><td></td></tr>
     <tr><td>link</td><td><code>string</code></td><td><strong>nullable</strong> <em>(changed 2026-08-08)</em> — DOI/external URL when one exists; conference and book-chapter entries frequently have no stable public URL</td></tr>
+  </table></div>
+  <h4>PublicationAuthor <em>(new 2026-09-06, ADR-015)</em></h4>
+  <div class="twrap"><table>
+    <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+    <tr><td>id</td><td><code>uuid</code></td><td>PK</td></tr>
+    <tr><td>publication_id</td><td><code>uuid</code></td><td>FK → Publication, <strong>cascade delete</strong></td></tr>
+    <tr><td>team_member_id</td><td><code>uuid</code></td><td>FK → TeamMember, <strong>nullable</strong> — null for an outside co-author, and nulled (not cascaded) when a linked member is deleted</td></tr>
+    <tr><td>name</td><td><code>string</code></td><td>snapshot taken when the row was written; this is what renders, so a byline survives a member being renamed or deleted</td></tr>
+    <tr><td>sort_order</td><td><code>int</code></td><td>citation position — load-bearing, not a display preference</td></tr>
+  </table></div>
+  <blockquote><strong>Note:</strong> an empty author list is valid and is the common case: it means
+  the professor's own solo work. Nothing is stored to represent him, and the public tab renders no
+  byline at all. Attribution is modelled as rows precisely so that solo work costs no NULL columns.
+  <code>(publication_id, team_member_id)</code> is unique, so the same person cannot be credited
+  twice; NULLs compare as distinct in Postgres, so the number of outside co-authors is
+  unconstrained.</blockquote>
+  <h4>ResearchContributor <em>(new 2026-09-06, ADR-015)</em></h4>
+  <div class="twrap"><table>
+    <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+    <tr><td>id</td><td><code>uuid</code></td><td>PK</td></tr>
+    <tr><td>research_id</td><td><code>uuid</code></td><td>FK → Research, <strong>cascade delete</strong></td></tr>
+    <tr><td>team_member_id</td><td><code>uuid</code></td><td>FK → TeamMember, <strong>nullable</strong> — as above</td></tr>
+    <tr><td>name</td><td><code>string</code></td><td>snapshot — as above</td></tr>
+    <tr><td>sort_order</td><td><code>int</code></td><td>display order only, with no citation meaning</td></tr>
   </table></div>
   <h4>ResearchGroup</h4>
   <div class="twrap"><table>
