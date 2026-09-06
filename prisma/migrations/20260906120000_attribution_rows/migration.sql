@@ -4,7 +4,6 @@ CREATE TABLE "publication_author" (
     "publication_id" TEXT NOT NULL,
     "team_member_id" TEXT,
     "name" TEXT NOT NULL,
-    "is_profile_owner" BOOLEAN NOT NULL DEFAULT false,
     "sort_order" INTEGER NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -18,20 +17,12 @@ CREATE TABLE "research_contributor" (
     "research_id" TEXT NOT NULL,
     "team_member_id" TEXT,
     "name" TEXT NOT NULL,
-    "is_profile_owner" BOOLEAN NOT NULL DEFAULT false,
     "sort_order" INTEGER NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "research_contributor_pkey" PRIMARY KEY ("id")
 );
-
--- AlterTable: how the professor is credited on a paper.
-ALTER TABLE "profile" ADD COLUMN "citation_name" TEXT;
-
--- AlterTable: keeps research co-authors off the public Team tab. They are real collaborators, but
--- not members of the site's own team, and the existing rows there are the people who built the site.
-ALTER TABLE "team_member" ADD COLUMN "show_on_team_tab" BOOLEAN NOT NULL DEFAULT true;
 
 -- CreateIndex
 CREATE INDEX "publication_author_publication_id_idx" ON "publication_author"("publication_id");
@@ -91,76 +82,6 @@ SELECT
 FROM "publication" p,
      unnest(regexp_split_to_array(p."authors", ',\s*|\s+and\s+')) WITH ORDINALITY AS t(part, ord)
 WHERE btrim(regexp_replace(t.part, '\s*\(alphabetical order\)\s*$', '')) <> '';
-
--- Backfill step 2: record how the professor is credited.
---
--- Set explicitly rather than derived. `full_name` is "Jenjira Jaimunk, PhD." and every byline reads
--- "J. Jaimunk"; no rule turns one into the other reliably (initials, particles, honorific suffixes),
--- and guessing wrong would mis-credit all 16 papers. Guarded so a value set by hand wins.
-UPDATE "profile" SET "citation_name" = 'J. Jaimunk' WHERE "citation_name" IS NULL;
-
--- Backfill step 3: claim her own rows.
---
--- These become owner rows rather than plain names: they render `profile.citation_name` live and
--- always sort first, so she is never stored as though she were an outside collaborator.
-UPDATE "publication_author" a
-SET "is_profile_owner" = true
-FROM "profile" p
-WHERE p."citation_name" IS NOT NULL
-  AND btrim(a."name") = btrim(p."citation_name");
-
--- Backfill step 4: turn every remaining distinct co-author into a real team member.
---
--- The same people recur across papers — M. Fernandez on six, B. Thuraisingham on five — and leaving
--- them as loose strings means the same human is retyped per publication and can never be counted,
--- filtered or corrected in one place. One `team_member` row each, linked from every occurrence.
---
--- Names are grouped on an accent-folded, case-folded key so "M. Fernandez" and "M. Fernández" (both
--- present, same person) collapse into one record; `min(name)` picks the unaccented spelling as the
--- canonical one. This is the only fuzziness here, and it is deliberate and narrow: two byline
--- strings that differ ONLY by accent or case are the same person. Anything else stays separate.
---
--- `show_on_team_tab` is false: they are collaborators, not staff of this site. `role` is a
--- placeholder the admin edits — the column is NOT NULL, so it needs some value.
-WITH candidates AS (
-    SELECT
-        lower(translate(btrim(a."name"),
-                        'áéíóúàèìòùâêîôûäëïöüñçÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÄËÏÖÜÑÇ',
-                        'aeiouaeiouaeiouaeioun cAEIOUAEIOUAEIOUAEIOUNC')) AS match_key,
-        min(btrim(a."name")) AS canonical_name
-    FROM "publication_author" a
-    WHERE a."is_profile_owner" = false
-    GROUP BY 1
-),
-created AS (
-    INSERT INTO "team_member" ("id", "name", "role", "show_on_team_tab", "sort_order", "created_at", "updated_at")
-    SELECT
-        'tm-byline-' || substr(md5(match_key), 1, 20),
-        canonical_name,
-        'Research collaborator',
-        false,
-        0,
-        CURRENT_TIMESTAMP,
-        CURRENT_TIMESTAMP
-    FROM candidates
-    RETURNING "id", "name"
-)
-UPDATE "publication_author" a
-SET "team_member_id" = created."id"
-FROM created, candidates c
-WHERE a."is_profile_owner" = false
-  AND created."name" = c.canonical_name
-  AND lower(translate(btrim(a."name"),
-                      'áéíóúàèìòùâêîôûäëïöüñçÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÄËÏÖÜÑÇ',
-                      'aeiouaeiouaeiouaeioun cAEIOUAEIOUAEIOUAEIOUNC')) = c.match_key;
-
--- One owner row per record. Postgres cannot express this as a plain UNIQUE constraint and Prisma
--- cannot express a partial index at all, so it lives here and is documented in schema.prisma.
--- Created after the backfill so it validates the rows the backfill just wrote.
-CREATE UNIQUE INDEX "publication_author_one_owner_per_publication"
-    ON "publication_author" ("publication_id") WHERE "is_profile_owner";
-CREATE UNIQUE INDEX "research_contributor_one_owner_per_research"
-    ON "research_contributor" ("research_id") WHERE "is_profile_owner";
 
 -- DropColumn
 -- Irreversible. The 16 original strings were inspected and saved to
