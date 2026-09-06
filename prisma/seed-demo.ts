@@ -30,30 +30,134 @@ const DEMO_PROFILE = {
 // CV entries. One flat list with a `section` on each row — the shape the `cv_entry` table stores,
 // rather than seven separate arrays hanging off the profile (ADR-012). `sortOrder` is per section.
 const DEMO_CV_ENTRIES = [
-  { section: 'education', title: 'PhD, Computer Science', subtitle: 'Northgate University', year: '2009', sortOrder: 0 },
-  { section: 'education', title: 'MSc, Cryptography', subtitle: 'University of Rhyswick', year: '2005', sortOrder: 1 },
-  { section: 'education', title: 'BSc, Mathematics', subtitle: 'University of Rhyswick', year: '2003', sortOrder: 2 },
+  {
+    section: 'education',
+    title: 'PhD, Computer Science',
+    subtitle: 'Northgate University',
+    year: '2009',
+    sortOrder: 0,
+  },
+  {
+    section: 'education',
+    title: 'MSc, Cryptography',
+    subtitle: 'University of Rhyswick',
+    year: '2005',
+    sortOrder: 1,
+  },
+  {
+    section: 'education',
+    title: 'BSc, Mathematics',
+    subtitle: 'University of Rhyswick',
+    year: '2003',
+    sortOrder: 2,
+  },
 
-  { section: 'fellowship', title: 'Visiting Researcher', subtitle: 'Institute for Secure Systems, Aalborg', year: '2021', sortOrder: 0 },
-  { section: 'fellowship', title: 'Senior Fellow', subtitle: 'National Cyber Resilience Programme', year: '2018–2020', sortOrder: 1 },
+  {
+    section: 'fellowship',
+    title: 'Visiting Researcher',
+    subtitle: 'Institute for Secure Systems, Aalborg',
+    year: '2021',
+    sortOrder: 0,
+  },
+  {
+    section: 'fellowship',
+    title: 'Senior Fellow',
+    subtitle: 'National Cyber Resilience Programme',
+    year: '2018–2020',
+    sortOrder: 1,
+  },
 
-  { section: 'scholarship', title: 'Doctoral Scholarship', subtitle: 'Rhyswick Trust', year: '2005–2009', sortOrder: 0 },
-  { section: 'scholarship', title: 'Conference Travel Award', subtitle: 'European Security Forum', year: '2016', sortOrder: 1 },
+  {
+    section: 'scholarship',
+    title: 'Doctoral Scholarship',
+    subtitle: 'Rhyswick Trust',
+    year: '2005–2009',
+    sortOrder: 0,
+  },
+  {
+    section: 'scholarship',
+    title: 'Conference Travel Award',
+    subtitle: 'European Security Forum',
+    year: '2016',
+    sortOrder: 1,
+  },
 
-  { section: 'research_interest', title: 'Applied cryptography', description: 'Protocol design and the gap between specification and implementation.', sortOrder: 0 },
-  { section: 'research_interest', title: 'Systems security', description: 'Isolation, supply-chain integrity and trustworthy build pipelines.', sortOrder: 1 },
-  { section: 'research_interest', title: 'Human factors', description: 'How operators and developers actually make security decisions under load.', sortOrder: 2 },
-  { section: 'research_interest', title: 'Security measurement', description: 'Large-scale empirical study of deployed defences.', sortOrder: 3 },
+  {
+    section: 'research_interest',
+    title: 'Applied cryptography',
+    description: 'Protocol design and the gap between specification and implementation.',
+    sortOrder: 0,
+  },
+  {
+    section: 'research_interest',
+    title: 'Systems security',
+    description: 'Isolation, supply-chain integrity and trustworthy build pipelines.',
+    sortOrder: 1,
+  },
+  {
+    section: 'research_interest',
+    title: 'Human factors',
+    description: 'How operators and developers actually make security decisions under load.',
+    sortOrder: 2,
+  },
+  {
+    section: 'research_interest',
+    title: 'Security measurement',
+    description: 'Large-scale empirical study of deployed defences.',
+    sortOrder: 3,
+  },
 
-  { section: 'invited_talk', title: 'Why Your Threat Model Is a Wish List', subtitle: 'European Security Forum', year: '2024', sortOrder: 0 },
-  { section: 'invited_talk', title: 'Key Rotation Nobody Performs', subtitle: 'Northgate Industry Day', year: '2023', sortOrder: 1 },
-  { section: 'invited_talk', title: 'Measuring Defences That Were Never Tested', subtitle: 'Institute for Secure Systems', year: '2022', sortOrder: 2 },
+  {
+    section: 'invited_talk',
+    title: 'Why Your Threat Model Is a Wish List',
+    subtitle: 'European Security Forum',
+    year: '2024',
+    sortOrder: 0,
+  },
+  {
+    section: 'invited_talk',
+    title: 'Key Rotation Nobody Performs',
+    subtitle: 'Northgate Industry Day',
+    year: '2023',
+    sortOrder: 1,
+  },
+  {
+    section: 'invited_talk',
+    title: 'Measuring Defences That Were Never Tested',
+    subtitle: 'Institute for Secure Systems',
+    year: '2022',
+    sortOrder: 2,
+  },
 
-  { section: 'teaching_role', title: 'Module Convenor, Applied Cryptography', subtitle: 'Postgraduate core module', year: '2014–present', sortOrder: 0 },
-  { section: 'teaching_role', title: 'Doctoral Supervisor', subtitle: 'Department of Computing', year: '2011–present', sortOrder: 1 },
+  {
+    section: 'teaching_role',
+    title: 'Module Convenor, Applied Cryptography',
+    subtitle: 'Postgraduate core module',
+    year: '2014–present',
+    sortOrder: 0,
+  },
+  {
+    section: 'teaching_role',
+    title: 'Doctoral Supervisor',
+    subtitle: 'Department of Computing',
+    year: '2011–present',
+    sortOrder: 1,
+  },
 
-  { section: 'teaching_award', title: 'Faculty Teaching Prize', subtitle: 'Northgate University', year: '2022', sortOrder: 0 },
-  { section: 'teaching_award', title: 'Student-Nominated Supervisor of the Year', subtitle: 'Department of Computing', year: '2019', sortOrder: 1 },
+  {
+    section: 'teaching_award',
+    title: 'Faculty Teaching Prize',
+    subtitle: 'Northgate University',
+    year: '2022',
+    sortOrder: 0,
+  },
+  {
+    section: 'teaching_award',
+    title: 'Student-Nominated Supervisor of the Year',
+    subtitle: 'Department of Computing',
+    year: '2019',
+    sortOrder: 1,
+  },
 ] as const;
 
 // Courses taught. Grouped by `level` on the public Teaching tab, in the order the first course of
@@ -103,6 +207,10 @@ const DEMO_RESEARCH = [
     summary:
       'A reproducible-build toolchain that lets an operator prove a deployed binary corresponds to reviewed source, with attestations that survive vendor handover.',
     area: 'Systems Security',
+    // Two of these four carry contributors and two deliberately carry none. The empty ones are the
+    // demo of "the professor's own solo work renders no byline" — the case most likely to regress
+    // without anyone noticing.
+    contributors: ['Rasmus Lindqvist', 'Tobias Meyer'],
     sortOrder: 1,
   },
   {
@@ -110,6 +218,7 @@ const DEMO_RESEARCH = [
     summary:
       'A longitudinal study of rotation, escrow and revocation in mid-size organisations, and why documented procedures diverge from what operators do at 3am.',
     area: 'Applied Cryptography',
+    contributors: [],
     sortOrder: 2,
   },
   {
@@ -117,6 +226,7 @@ const DEMO_RESEARCH = [
     summary:
       'Techniques for stress-testing SIEM and detection rules against attackers who know the rules exist, including measurement of alert fatigue thresholds.',
     area: 'Security Measurement',
+    contributors: ['Sophie Whitcombe'],
     sortOrder: 3,
   },
   {
@@ -124,6 +234,7 @@ const DEMO_RESEARCH = [
     summary:
       'Field work on whether interstitial warnings change behaviour, and what a warning has to say to be acted on rather than dismissed.',
     area: 'Human Factors',
+    contributors: [],
     sortOrder: 4,
   },
 ];
@@ -131,35 +242,35 @@ const DEMO_RESEARCH = [
 const DEMO_PUBLICATIONS = [
   {
     title: 'Reproducible Builds in Practice: A Four-Year Field Study',
-    authors: 'A. Osei, R. Lindqvist, T. Meyer',
+    authors: ['A. Osei', 'R. Lindqvist', 'T. Meyer'],
     venue: 'Transactions on Secure Computing',
     year: 2025,
     link: 'https://example.org/publications/reproducible-builds-field-study',
   },
   {
     title: 'The Rotation Gap: Key Management Between Policy and Practice',
-    authors: 'A. Osei, N. Haddad',
+    authors: ['A. Osei', 'N. Haddad'],
     venue: 'International Conference on Applied Cryptography',
     year: 2024,
     link: 'https://example.org/publications/rotation-gap',
   },
   {
     title: 'Detection Rules Under Adversarial Load',
-    authors: 'P. Ferreira, A. Osei',
+    authors: ['P. Ferreira', 'A. Osei'],
     venue: 'Symposium on Security Measurement',
     year: 2023,
     link: 'https://example.org/publications/detection-rules-adversarial-load',
   },
   {
     title: 'What Operators Actually Read: Warning Comprehension at Scale',
-    authors: 'A. Osei, S. Whitcombe, J. Park',
+    authors: ['A. Osei', 'S. Whitcombe', 'J. Park'],
     venue: 'Conference on Human Factors in Computing Security',
     year: 2022,
     link: 'https://example.org/publications/warning-comprehension',
   },
   {
     title: 'Supply-Chain Attestations Without a Trusted Vendor',
-    authors: 'R. Lindqvist, A. Osei',
+    authors: ['R. Lindqvist', 'A. Osei'],
     venue: 'Workshop on Trustworthy Systems',
     year: 2021,
     link: 'https://example.org/publications/attestations-without-trusted-vendor',
@@ -172,9 +283,24 @@ const DEMO_GROUPS = [
     description:
       'Protocol design, implementation review and the long tail of key-management practice in deployed systems.',
     members: [
-      { name: 'Nadia Haddad', role: 'Senior Researcher', bio: 'Works on key escrow and revocation in federated deployments.', sortOrder: 1 },
-      { name: 'Tobias Meyer', role: 'PhD Candidate', bio: 'Studying formal verification of TLS implementations.', sortOrder: 2 },
-      { name: 'Yuki Tanaka', role: 'PhD Candidate', bio: 'Post-quantum migration paths for long-lived signing keys.', sortOrder: 3 },
+      {
+        name: 'Nadia Haddad',
+        role: 'Senior Researcher',
+        bio: 'Works on key escrow and revocation in federated deployments.',
+        sortOrder: 1,
+      },
+      {
+        name: 'Tobias Meyer',
+        role: 'PhD Candidate',
+        bio: 'Studying formal verification of TLS implementations.',
+        sortOrder: 2,
+      },
+      {
+        name: 'Yuki Tanaka',
+        role: 'PhD Candidate',
+        bio: 'Post-quantum migration paths for long-lived signing keys.',
+        sortOrder: 3,
+      },
     ],
   },
   {
@@ -182,8 +308,18 @@ const DEMO_GROUPS = [
     description:
       'Isolation, supply-chain integrity and reproducible builds for infrastructure that cannot be taken offline.',
     members: [
-      { name: 'Rasmus Lindqvist', role: 'Postdoctoral Researcher', bio: 'Builds attestation tooling for air-gapped deployments.', sortOrder: 1 },
-      { name: 'Chidi Nwosu', role: 'PhD Candidate', bio: 'Container escape analysis in multi-tenant clusters.', sortOrder: 2 },
+      {
+        name: 'Rasmus Lindqvist',
+        role: 'Postdoctoral Researcher',
+        bio: 'Builds attestation tooling for air-gapped deployments.',
+        sortOrder: 1,
+      },
+      {
+        name: 'Chidi Nwosu',
+        role: 'PhD Candidate',
+        bio: 'Container escape analysis in multi-tenant clusters.',
+        sortOrder: 2,
+      },
     ],
   },
   {
@@ -191,16 +327,36 @@ const DEMO_GROUPS = [
     description:
       'Empirical study of how developers and operators make security decisions, and what tooling changes those decisions.',
     members: [
-      { name: 'Sophie Whitcombe', role: 'Senior Researcher', bio: 'Field studies of incident-response teams under time pressure.', sortOrder: 1 },
-      { name: 'Jae-won Park', role: 'Research Assistant', bio: 'Instrumentation and analysis for large-scale warning studies.', sortOrder: 2 },
+      {
+        name: 'Sophie Whitcombe',
+        role: 'Senior Researcher',
+        bio: 'Field studies of incident-response teams under time pressure.',
+        sortOrder: 1,
+      },
+      {
+        name: 'Jae-won Park',
+        role: 'Research Assistant',
+        bio: 'Instrumentation and analysis for large-scale warning studies.',
+        sortOrder: 2,
+      },
     ],
   },
 ];
 
 /** No research group — exercises the Team Members tab's ungrouped section. */
 const DEMO_UNGROUPED_MEMBERS = [
-  { name: 'Prof. Elena Vasquez', role: 'Visiting Professor', bio: 'On sabbatical from the Institute for Secure Systems, Aalborg.', sortOrder: 1 },
-  { name: 'Dr. Marcus Bell', role: 'Industry Fellow', bio: 'Splits time between the department and a national CERT.', sortOrder: 2 },
+  {
+    name: 'Prof. Elena Vasquez',
+    role: 'Visiting Professor',
+    bio: 'On sabbatical from the Institute for Secure Systems, Aalborg.',
+    sortOrder: 1,
+  },
+  {
+    name: 'Dr. Marcus Bell',
+    role: 'Industry Fellow',
+    bio: 'Splits time between the department and a national CERT.',
+    sortOrder: 2,
+  },
 ];
 
 function daysFromNow(days: number, hour: number): Date {
@@ -235,20 +391,6 @@ async function seed() {
     console.log('courses: rows already present — skipped');
   }
 
-  if ((await prisma.research.count()) === 0) {
-    await prisma.research.createMany({ data: DEMO_RESEARCH });
-    console.log(`research: ${DEMO_RESEARCH.length} created`);
-  } else {
-    console.log('research: rows already present — skipped');
-  }
-
-  if ((await prisma.publication.count()) === 0) {
-    await prisma.publication.createMany({ data: DEMO_PUBLICATIONS });
-    console.log(`publications: ${DEMO_PUBLICATIONS.length} created`);
-  } else {
-    console.log('publications: rows already present — skipped');
-  }
-
   if ((await prisma.researchGroup.count()) === 0) {
     for (const { members, ...group } of DEMO_GROUPS) {
       await prisma.researchGroup.create({
@@ -262,6 +404,47 @@ async function seed() {
     );
   } else {
     console.log('research groups: rows already present — skipped');
+  }
+
+  // Research and publications are seeded AFTER the team, so their credited names can be matched
+  // back to real member rows. Without at least one linked row nothing in the demo data exercises
+  // the `teamMemberId` path — not the picker's already-credited filter, and not the SetNull that
+  // keeps a byline intact when a member is deleted.
+  //
+  // Matched on surname because the demo bylines are written the way a citation is ("R. Lindqvist")
+  // while the team rows hold full names ("Rasmus Lindqvist"). A name that matches nobody stays
+  // unlinked, which is exactly right for an outside co-author.
+  const seededMembers = await prisma.teamMember.findMany({ select: { id: true, name: true } });
+  const memberIdBySurname = new Map(
+    seededMembers.map((member) => [member.name.split(' ').at(-1)?.toLowerCase(), member.id]),
+  );
+  const linkOf = (name: string) =>
+    memberIdBySurname.get(name.split(' ').at(-1)?.toLowerCase()) ?? null;
+  const toRows = (names: string[]) =>
+    names.map((name, sortOrder) => ({ name, teamMemberId: linkOf(name), sortOrder }));
+
+  if ((await prisma.research.count()) === 0) {
+    for (const { contributors, ...work } of DEMO_RESEARCH) {
+      await prisma.research.create({
+        data: { ...work, contributors: { create: toRows(contributors) } },
+      });
+    }
+    console.log(`research: ${DEMO_RESEARCH.length} created`);
+  } else {
+    console.log('research: rows already present — skipped');
+  }
+
+  if ((await prisma.publication.count()) === 0) {
+    // `createMany` cannot do nested writes, so these go one at a time. Five round trips in a seed
+    // script costs nothing.
+    for (const { authors, ...publication } of DEMO_PUBLICATIONS) {
+      await prisma.publication.create({
+        data: { ...publication, authors: { create: toRows(authors) } },
+      });
+    }
+    console.log(`publications: ${DEMO_PUBLICATIONS.length} created`);
+  } else {
+    console.log('publications: rows already present — skipped');
   }
 
   if ((await prisma.event.count()) === 0) {
@@ -349,6 +532,7 @@ async function undo() {
     `undo: ${research.count} research, ${publications.count} publications, ${groups.count} groups, ` +
       `${members.count} team members, ${events.count} events, ${courses.count} courses, ` +
       `${cvEntries.count} CV entries removed. ` +
+      'Authorship rows cascade from their publication/research, so they need no delete of their own. ' +
       'Profile left as-is (edit it in the admin UI).',
   );
 }

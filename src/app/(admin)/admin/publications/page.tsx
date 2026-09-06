@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getProfileCached, ProfileFieldsForm } from '@/modules/profile';
 import { getPublicationService, PublicationsTable } from '@/modules/publications';
+import { getTeamMemberService } from '@/modules/research-groups';
 import { AdminScreen } from '../_components/admin-screen';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -17,9 +18,10 @@ const PROFILE_SECTIONS = [
 ] as const;
 
 export default async function AdminPublicationsPage() {
-  const [profileResult, result] = await Promise.all([
+  const [profileResult, result, membersResult] = await Promise.all([
     getProfileCached(),
     getPublicationService().list(),
+    getTeamMemberService().list(),
   ]);
 
   return (
@@ -28,7 +30,14 @@ export default async function AdminPublicationsPage() {
         profile={profileResult.ok ? profileResult.data : null}
         sections={PROFILE_SECTIONS}
       />
-      <PublicationsTable items={result.ok ? result.data : []} />
+      <PublicationsTable
+        items={result.ok ? result.data : []}
+        members={
+          membersResult.ok
+            ? membersResult.data.map(({ id, name, role }) => ({ id, name, role }))
+            : []
+        }
+      />
     </AdminScreen>
   );
 }

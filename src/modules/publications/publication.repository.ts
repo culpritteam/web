@@ -1,8 +1,20 @@
 import { prisma } from '@/modules/shared/lib/prisma';
 import { auditLogData } from '@/modules/shared/lib/audit';
-import type { Publication as PrismaPublication } from '@prisma/client';
-import type { AuditContext, Publication, PublicationStats } from './publication.types';
-import type { CreatePublicationInput, UpdatePublicationInput } from './publication.schema';
+import type {
+  Publication as PrismaPublication,
+  PublicationAuthor as PrismaPublicationAuthor,
+} from '@prisma/client';
+import type {
+  AuditContext,
+  Publication,
+  PublicationAuthor,
+  PublicationStats,
+} from './publication.types';
+import type {
+  CreatePublicationInput,
+  PublicationAuthorInput,
+  UpdatePublicationInput,
+} from './publication.schema';
 
 // The ONLY place Prisma is used for publication data. No business rules here — the service
 // decides WHAT to write; the repository just persists it atomically alongside its audit entry.
@@ -28,11 +40,39 @@ export interface PublicationRepository {
   deleteWithAudit(input: { id: string; audit: AuditContext }): Promise<void>;
 }
 
-function toDomain(row: PrismaPublication): Publication {
+/**
+ * Authors always come back in the order the admin arranged. `createdAt` only breaks a tie between
+ * rows that somehow share a `sortOrder`, so the order is total and the list never reshuffles
+ * between two reads.
+ */
+const AUTHOR_ORDER = [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }];
+
+const withAuthors = { authors: { orderBy: AUTHOR_ORDER } };
+
+type PrismaPublicationRow = PrismaPublication & { authors: PrismaPublicationAuthor[] };
+
+function toAuthor(row: PrismaPublicationAuthor): PublicationAuthor {
+  return {
+    id: row.id,
+    teamMemberId: row.teamMemberId,
+    name: row.name,
+    sortOrder: row.sortOrder,
+  };
+}
+
+/** The array's own order IS the stored order — the index becomes `sortOrder`. */
+const toAuthorRows = (authors: PublicationAuthorInput[]) =>
+  authors.map((author, index) => ({
+    teamMemberId: author.teamMemberId ?? null,
+    name: author.name,
+    sortOrder: index,
+  }));
+
+function toDomain(row: PrismaPublicationRow): Publication {
   return {
     id: row.id,
     title: row.title,
-    authors: row.authors,
+    authors: row.authors.map(toAuthor),
     venue: row.venue,
     year: row.year,
     link: row.link,
@@ -46,13 +86,17 @@ const auditData = (audit: AuditContext, entityId: string) =>
 
 export class PrismaPublicationRepository implements PublicationRepository {
   async findById(id: string): Promise<Publication | null> {
-    const row = await prisma.publication.findUnique({ where: { id } });
+    const row = await prisma.publication.findUnique({ where: { id }, include: withAuthors });
     return row ? toDomain(row) : null;
   }
 
   async list(): Promise<Publication[]> {
+    // `include` on a to-many is one extra query for the whole page, not one per row. Every
+    // consumer — the public list, the admin table, the edit form — wants the names, so fetching
+    // them unconditionally beats making each caller ask twice.
     const rows = await prisma.publication.findMany({
       orderBy: [{ year: 'desc' }, { createdAt: 'desc' }],
+      include: withAuthors,
     });
     return rows.map(toDomain);
   }
@@ -83,11 +127,12 @@ export class PrismaPublicationRepository implements PublicationRepository {
       const row = await tx.publication.create({
         data: {
           title: input.data.title,
-          authors: input.data.authors,
+          authors: { create: toAuthorRows(input.data.authors) },
           venue: input.data.venue,
           year: input.data.year,
           link: input.data.link ?? null,
         },
+        include: withAuthors,
       });
       await tx.auditLog.create({ data: auditData(input.audit, row.id) });
       return row;
@@ -107,14 +152,27 @@ export class PrismaPublicationRepository implements PublicationRepository {
         // input maps straight through — an absent key is not a cleared column.
         data: {
           title: input.data.title,
-          authors: input.data.authors,
           venue: input.data.venue,
           year: input.data.year,
           link: input.data.link,
         },
       });
+
+      // Replaced wholesale rather than diffed. The list is a handful of short rows, nothing holds a
+      // reference to an author row's id, and an absent `authors` key still means "leave it alone" —
+      // the same partial-update convention every scalar column above follows.
+      if (input.data.authors) {
+        await tx.publicationAuthor.deleteMany({ where: { publicationId: row.id } });
+        await tx.publicationAuthor.createMany({
+          data: toAuthorRows(input.data.authors).map((author) => ({
+            ...author,
+            publicationId: row.id,
+          })),
+        });
+      }
+
       await tx.auditLog.create({ data: auditData(input.audit, row.id) });
-      return row;
+      return tx.publication.findUniqueOrThrow({ where: { id: row.id }, include: withAuthors });
     });
     return toDomain(updated);
   }

@@ -1,4 +1,4 @@
-// publications module — publications CRUD (title, authors, venue, year, link).
+// publications module — publications CRUD (title, credited authors, venue, year, link).
 
 export {
   createPublicationSchema,
@@ -7,7 +7,12 @@ export {
   type UpdatePublicationInput,
 } from './publication.schema';
 
-export type { Publication, PublicationStats, AuditContext } from './publication.types';
+export type {
+  Publication,
+  PublicationAuthor,
+  PublicationStats,
+  AuditContext,
+} from './publication.types';
 
 export {
   createPublicationService,

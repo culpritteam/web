@@ -51,6 +51,12 @@ export function ResearchList({ items }: { items: Research[] }) {
                 <p className="mt-3 max-w-[62ch] text-pretty leading-[1.7] text-muted-foreground">
                   {item.summary}
                 </p>
+                {/* Omitted entirely when nobody is credited — that means it is his own work. */}
+                {item.contributors.length > 0 && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    With {item.contributors.map((contributor) => contributor.name).join(', ')}
+                  </p>
+                )}
 
                 {item.link && (
                   <a

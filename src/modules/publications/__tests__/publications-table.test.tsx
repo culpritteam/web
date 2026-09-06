@@ -39,7 +39,10 @@ describe('PublicationsTable', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add publication' }));
     await user.type(screen.getByLabelText('Title', { exact: false }), 'A paper');
-    await user.type(screen.getByLabelText('Authors', { exact: false }), 'A. Author');
+    // Authors is no longer a text field — it is an ordered list built by adding people one at a
+    // time, so the outside-co-author path stands in for typing a name.
+    await user.type(screen.getByLabelText('Add an outside co-author'), 'A. Author');
+    await user.click(screen.getAllByRole('button', { name: 'Add' })[1]);
     await user.type(screen.getByLabelText('Venue', { exact: false }), 'USENIX');
     await user.type(screen.getByLabelText('Link', { exact: false }), 'https://example.com/paper');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));

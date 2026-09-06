@@ -53,6 +53,52 @@ describe('createResearchSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+  // Attribution is rows, not a column: an empty list is how "his own solo work" is expressed.
+  it('accepts an empty contributor list, which means solo work', () => {
+    const result = createResearchSchema.safeParse({
+      title: 'Malware Analysis',
+      summary: 'Studying evasive malware.',
+      area: 'malware analysis',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.contributors).toEqual([]);
+  });
+
+  it('accepts linked team members and outside collaborators in one list', () => {
+    const result = createResearchSchema.safeParse({
+      title: 'Malware Analysis',
+      summary: 'Studying evasive malware.',
+      area: 'malware analysis',
+      contributors: [
+        { teamMemberId: 'tm_1', name: 'R. Lindqvist' },
+        { teamMemberId: null, name: 'T. Meyer' },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects the same team member credited twice', () => {
+    const result = createResearchSchema.safeParse({
+      title: 'Malware Analysis',
+      summary: 'Studying evasive malware.',
+      area: 'malware analysis',
+      contributors: [
+        { teamMemberId: 'tm_1', name: 'R. Lindqvist' },
+        { teamMemberId: 'tm_1', name: 'R. Lindqvist' },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an over-length contributor name', () => {
+    const result = createResearchSchema.safeParse({
+      title: 'Malware Analysis',
+      summary: 'Studying evasive malware.',
+      area: 'malware analysis',
+      contributors: [{ name: 'a'.repeat(201) }],
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('updateResearchSchema', () => {

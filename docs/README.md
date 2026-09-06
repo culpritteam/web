@@ -119,6 +119,19 @@ nobody trusts the wrong source, and a maintainer can decide what (if anything) t
 7. **Minor code-comment staleness**: `src/modules/integrations/index.ts`'s header comment still
    describes the storage adapter as "(Supabase Storage)" though the actual exported/used adapter
    is `R2StorageAdapter`. Not a doc contradiction, just a one-line comment worth a follow-up edit.
+8. **`AGENTS.md` no longer exists** — it was deleted in `7082727` ("docs: prune stale docs and
+   internal references"), but `CLAUDE.md` still linked to it as "the workflow for using `docs/`
+   before/after a code change" and `.reports/SESSION-HANDOFF.md` still lists it under "Read these
+   first". The `CLAUDE.md` link was corrected on 2026-09-06 to point here instead; the handoff file
+   is local-only and untouched. **This file is now the only documented docs workflow.**
+9. **`docs-site/PROJECT_SPEC.html` is stale and invisible to search.** It is a hand-maintained
+   mirror of `PROJECT_SPEC.md` — there is no generation script, despite what `CLAUDE.md` implied
+   until 2026-09-06 — and it is the source of the GitHub Pages spec site, so it must be edited by
+   hand alongside the `.md`. It is currently pre-[ADR-011](decisions/ADR-011-events-replace-appointments.md):
+   it still documents the `Appointment` entity, its status transitions and its lifecycle, and has
+   never had the ADR-012 CV-entry change. Its §7.1 entity tables **were** updated on 2026-09-06 for
+   [ADR-015](decisions/ADR-015-attribution-rows.md). `scripts/docs-search.mjs` only walks `.md`
+   files, which is how the drift went unnoticed.
 
 ## Retrieval
 

@@ -51,3 +51,6 @@ Thumbs.db
 
 .vercel
 .env*
+
+# Local-only backup of data a destructive migration dropped — never commit.
+.backups/

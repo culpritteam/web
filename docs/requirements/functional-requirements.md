@@ -1,9 +1,9 @@
 ---
 status: current
 source_of_truth: false
-last_updated: 2026-09-01
+last_updated: 2026-09-06
 related_modules: [profile, research, publications, research-groups, events, teaching, auth]
-related_decisions: [ADR-005, ADR-011, ADR-012]
+related_decisions: [ADR-005, ADR-011, ADR-012, ADR-015]
 ---
 
 # Functional requirements
@@ -17,8 +17,8 @@ related_decisions: [ADR-005, ADR-011, ADR-012]
 | ID | Requirement |
 |----|-------------|
 | FR-1 | Visitor can view the **Bio** tab: professor photo, name, title, background text. |
-| FR-2 | Visitor can view the **Research** tab: a simple list of research works (title + summary + area). |
-| FR-3 | Visitor can view **Publications**: title, authors, venue, year, and an external link. `link` is nullable — shown only when present. |
+| FR-2 *(extended 2026-09-06, [ADR-015](../decisions/ADR-015-attribution-rows.md))* | Visitor can view the **Research** tab: a simple list of research works (title + summary + area), each optionally crediting named contributors — team members, outside collaborators, or both. A work crediting nobody is the professor's own solo work and shows no names. |
+| FR-3 *(rewritten 2026-09-06, [ADR-015](../decisions/ADR-015-attribution-rows.md))* | Visitor can view **Publications**: title, authors, venue, year, and an external link. Authors are ordered rows, each either a linked team member or an outside co-author; an entry with no authors is the professor's own solo work and shows no byline. `link` is nullable — shown only when present. |
 | FR-4 | Visitor can view **Team Members**, grouped by research group (CV-style: works & achievements). Backed by the relational `TeamMember` entity, not a "Research Groups" tab. |
 | FR-5 | Visitor can view the **Events** tab: admin-authored events split into Upcoming and Past by `Event.eventDate` at render time, each with a title, description, photo gallery and YouTube embeds. Every event is public — there is no visibility flag. See [ADR-011](../decisions/ADR-011-events-replace-appointments.md). |
 | FR-5a *(new, 2026-09-02, [ADR-012](../decisions/ADR-012-cv-entries-and-courses.md))* | Visitor can view the **Teaching** tab: courses grouped by level (code, title, term, description, optional link), followed by teaching roles and teaching awards. |
@@ -38,7 +38,7 @@ There is **no visitor-facing appointment request form**, and since [ADR-011](../
 | ID | Requirement |
 |----|-------------|
 | FR-13 | Admin can log in via a single admin account. |
-| FR-14 *(rewritten 2026-09-02, [ADR-012](../decisions/ADR-012-cv-entries-and-courses.md))* | Admin can edit the **Profile** (name, title, photo, position/affiliation, bio, research statement, LinkedIn/Google Scholar links), Research, Publications, Research Groups, and Team Members via simple forms. The seven CV lists — education, fellowships, scholarships, research interests, invited talks, teaching roles, teaching awards — are now `cv_entry` rows edited one at a time on the **Teaching** screen, not part of the profile document. |
+| FR-14 *(rewritten 2026-09-02, [ADR-012](../decisions/ADR-012-cv-entries-and-courses.md))* | Admin can edit the **Profile** (name, title, photo, position/affiliation, bio, research statement, LinkedIn/Google Scholar links), Research, Publications, Research Groups, and Team Members via simple forms. The seven CV lists — education, fellowships, scholarships, research interests, invited talks, teaching roles, teaching awards — are now `cv_entry` rows edited one at a time on the **Teaching** screen, not part of the profile document. **Extended 2026-09-06 ([ADR-015](../decisions/ADR-015-attribution-rows.md)):** the Research and Publication forms credit people by picking an existing team member or typing an outside name, with reordering; the list saves with the record rather than separately. |
 | FR-14a *(new, 2026-09-02)* | Admin can create, edit and delete **courses** (code, title, level, term, description, link, order) and **CV entries** (section, title, subtitle, year, description, order) on `/admin/teaching`. |
 | FR-15 | Each editing form has a clear **"Save changes"** action with success/error feedback. |
 | FR-16c | Admin uploads event photos through `POST /api/admin/events/photo` (R2 `events` bucket, 4 MB per file, up to 20 per event) and adds videos by pasting a YouTube link, which is stored as a parsed video ID. No video file is ever uploaded or proxied. |
