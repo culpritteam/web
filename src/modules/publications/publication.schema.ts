@@ -15,6 +15,12 @@ import { entityId, optionalUrl, safeText } from '@/modules/shared/lib/schema-fie
 const publicationAuthor = z.object({
   teamMemberId: entityId.nullable().optional(),
   name: safeText(200),
+  /**
+   * Marks the professor's own row. Sent by the form when she credits herself, so she is never
+   * stored as an outside co-author. The name still rides along (it is what a client without a
+   * citation name set would show), but the public site renders `Profile.citationName` for it.
+   */
+  isProfileOwner: z.boolean().optional().default(false),
 });
 
 /**
@@ -31,6 +37,11 @@ const authorList = z
     const linked = rows.map((row) => row.teamMemberId).filter(Boolean);
     if (new Set(linked).size !== linked.length) {
       ctx.addIssue({ code: 'custom', message: 'Someone is listed twice.' });
+    }
+    // Mirrors the partial unique index on the table. Caught here so the admin sees a sentence
+    // rather than a constraint violation.
+    if (rows.filter((row) => row.isProfileOwner).length > 1) {
+      ctx.addIssue({ code: 'custom', message: 'You are listed twice.' });
     }
   });
 

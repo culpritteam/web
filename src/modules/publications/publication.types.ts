@@ -9,6 +9,13 @@ export type PublicationAuthor = {
   id: string;
   teamMemberId: string | null;
   name: string;
+  /**
+   * The professor's own row. She owns the site rather than being one of its team members, so she
+   * cannot be credited through `teamMemberId`; this flag is what distinguishes her from an outside
+   * co-author typed in by hand. Renders `Profile.citationName` rather than `name`, and always sorts
+   * first — the repository orders on this before `sortOrder`.
+   */
+  isProfileOwner: boolean;
   sortOrder: number;
 };
 

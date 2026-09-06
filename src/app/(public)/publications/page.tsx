@@ -29,6 +29,7 @@ export default async function PublicationsPage() {
     getProfileCached(),
   ]);
   const intro = profileResult.ok ? profileResult.data?.publicationsIntro : null;
+  const citationName = profileResult.ok ? profileResult.data?.citationName : null;
 
   return (
     <div>
@@ -48,7 +49,7 @@ export default async function PublicationsPage() {
         {!result.ok || result.data.length === 0 ? (
           <EmptyState title="No publications listed yet" />
         ) : (
-          <PublicationsList items={result.data} />
+          <PublicationsList items={result.data} citationName={citationName} />
         )}
       </div>
     </div>

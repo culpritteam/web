@@ -24,6 +24,12 @@ export const createTeamMemberSchema = z.object({
   // Nullable, not just optional: an undefined key vanishes from the JSON body and the update
   // route reads that as "leave the column alone", so removing a photo needs an explicit null.
   photoUrl: httpUrl.nullable().optional(),
+  /**
+   * Defaults to true. False is for a research co-author that exists only so a byline can link to a
+   * single record — a real collaborator, but not part of this site's team, and listing them beside
+   * the people who built the site would misrepresent both.
+   */
+  showOnTeamTab: z.boolean().optional(),
   researchGroupId: entityId.nullable().optional(),
   sortOrder,
 });

@@ -27,15 +27,15 @@ related_decisions: [ADR-001, ADR-004, ADR-010, ADR-015]
 
 | Model | Purpose | Notes |
 |---|---|---|
-| `Profile` | Singleton professor bio | Identity and prose only: name, title, photo, bio, position, research statement, `linkedinUrl`/`googleScholarUrl`. The seven `Json` list columns moved to `cv_entry` on 2026-09-02 ([ADR-012](../decisions/ADR-012-cv-entries-and-courses.md)). |
+| `Profile` | Singleton professor bio | Identity and prose only: name, title, photo, bio, position, research statement, `linkedinUrl`/`googleScholarUrl`, plus `citationName` — her byline form ("J. Jaimunk"), added 2026-09-06 ([ADR-015](../decisions/ADR-015-attribution-rows.md)). The seven `Json` list columns moved to `cv_entry` on 2026-09-02 ([ADR-012](../decisions/ADR-012-cv-entries-and-courses.md)). |
 | `CvEntry` | CV lines, tagged by `section` | One table with a `CvSection` discriminator, not seven — every section carries the same four fields. Five sections render on About, two on Teaching. |
 | `Course` | Taught courses | Backs the Teaching tab, grouped by free-text `level`. |
 | `Research` | Research works | `link` nullable. Contributors are `ResearchContributor` rows, not a column. |
 | `Publication` | Publications | `link` nullable (conference/book-chapter entries often have no stable URL). The free-text `authors` column was **removed** 2026-09-06 ([ADR-015](../decisions/ADR-015-attribution-rows.md)) — replaced by `PublicationAuthor` rows. |
-| `PublicationAuthor` | Credited authors, in citation order | Join row: cascade from `Publication`, nullable `teamMemberId` (`onDelete: SetNull`), and a `name` snapshot that is what renders. **Zero rows means the professor's own solo work** — the reason attribution is rows rather than nullable columns. |
+| `PublicationAuthor` | Credited authors, in citation order | Join row: cascade from `Publication`, nullable `teamMemberId` (`onDelete: SetNull`), and a `name` snapshot that is what renders. `isProfileOwner` marks the professor's own row — she is the `Profile` singleton, not a `TeamMember` — which renders `Profile.citationName` live and always sorts first. At most one owner per publication, via a **partial unique index that Prisma cannot express**; it lives in the migration and shows as drift. |
 | `ResearchContributor` | Credited contributors | Same shape as `PublicationAuthor`; `sortOrder` is display order only, with no citation meaning. |
 | `ResearchGroup` | Research groups | Has-many `TeamMember`. `members` JSON blob was **removed** — replaced by the relational entity below. |
-| `TeamMember` | Researchers & visiting professors | `researchGroupId` nullable FK (`onDelete: SetNull`) — a member may be unaffiliated. |
+| `TeamMember` | Researchers & visiting professors | `researchGroupId` nullable FK (`onDelete: SetNull`) — a member may be unaffiliated. `showOnTeamTab` (default true) is false for research co-authors that exist only so bylines can link to one record per person; the public Team tab filters on it. |
 | `Event` | Admin-authored events on the public Events tab | See below. |
 | ~~`Appointment`~~ | ~~Admin-declared appointments~~ | **Deleted 2026-09-01 ([ADR-011](../decisions/ADR-011-events-replace-appointments.md)),** along with the `AppointmentStatus` enum and every row. Replaced by `Event`. |
 | ~~`Setting`~~ | ~~Key/value flags~~ | **Deleted 2026-08-13 (ADR-010).** Held one key, `upcoming_events_visible`. |

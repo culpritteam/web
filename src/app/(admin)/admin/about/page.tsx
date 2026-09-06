@@ -28,7 +28,7 @@ const PROFILE_SECTIONS = [
     id: 'identity',
     title: 'Identity',
     description: 'The name, title and portrait at the head of every public page.',
-    fields: ['fullName', 'title', 'photoUrl'],
+    fields: ['fullName', 'citationName', 'title', 'photoUrl'],
   },
   {
     id: 'prose',

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Trash2, UserPlus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Star, Trash2, UserPlus } from 'lucide-react';
 import { Button } from './button';
 import { EmptyState } from './empty-state';
 import { Input } from './input';
@@ -25,12 +25,18 @@ import { Select } from './select';
 // and a label aimed at nothing is worse than no label: it announces a control that isn't there.
 
 export type BylinePerson = { id: string; name: string; role: string };
-export type BylineEntry = { teamMemberId?: string | null; name: string };
+export type BylineEntry = {
+  teamMemberId?: string | null;
+  name: string;
+  /** The professor's own row. She is not a team member, so she cannot be added through the picker. */
+  isProfileOwner?: boolean;
+};
 
 export function BylineField({
   value,
   onChange,
   members,
+  owner,
   label,
   description,
   error,
@@ -43,6 +49,12 @@ export function BylineField({
   value: BylineEntry[];
   onChange: (value: BylineEntry[]) => void;
   members: BylinePerson[];
+  /**
+   * How the site's owner is credited on her own work. Given its own control rather than being left
+   * to the free-text box: typing her name there would store her as though she were an outside
+   * collaborator, which is exactly what the owner flag exists to prevent.
+   */
+  owner?: { citationName: string } | null;
   label: string;
   description?: string;
   error?: string;
@@ -59,6 +71,14 @@ export function BylineField({
   // Already-credited people are dropped from the picker rather than offered and then rejected.
   const credited = new Set(value.map((entry) => entry.teamMemberId).filter(Boolean));
   const selectable = members.filter((member) => !credited.has(member.id));
+  const ownerCredited = value.some((entry) => entry.isProfileOwner);
+
+  // Prepended, not appended: she is first on the byline of her own work, and the control should
+  // read the way the result does.
+  const addOwner = () => {
+    if (!owner || ownerCredited) return;
+    onChange([{ isProfileOwner: true, teamMemberId: null, name: owner.citationName }, ...value]);
+  };
 
   const addMember = () => {
     const member = members.find((candidate) => candidate.id === memberId);
@@ -93,6 +113,20 @@ export function BylineField({
         <p id={descriptionId} className="text-xs leading-relaxed text-muted-foreground">
           {description}
         </p>
+      )}
+
+      {owner && (
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={disabled || ownerCredited}
+            onClick={addOwner}
+          >
+            <Star className="size-4" aria-hidden="true" />
+            {ownerCredited ? `${owner.citationName} — added` : `Add me (${owner.citationName})`}
+          </Button>
+        </div>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -167,16 +201,18 @@ export function BylineField({
         <ul className="flex flex-col">
           {value.map((entry, index) => (
             <li
-              key={`${entry.teamMemberId ?? 'external'}-${index}`}
+              key={`${entry.isProfileOwner ? 'owner' : (entry.teamMemberId ?? 'external')}-${index}`}
               className="flex items-center gap-2 border-t border-border py-2 first:border-t-0"
             >
               <span className="tabular w-6 shrink-0 font-mono text-xs text-muted-foreground">
                 {index + 1}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">{entry.name}</p>
+                <p className="truncate text-sm font-medium text-foreground">
+                  {entry.isProfileOwner && owner ? owner.citationName : entry.name}
+                </p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {entry.teamMemberId ? 'Team member' : 'External'}
+                  {entry.isProfileOwner ? 'You' : entry.teamMemberId ? 'Team member' : 'External'}
                 </p>
               </div>
               <Button

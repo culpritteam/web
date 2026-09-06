@@ -28,6 +28,9 @@ the Turnstile keys, the `NEXT_PUBLIC_*` URLs — were maintained in four separat
 | `.env.production` on the VPS | bootstrapped once by hand, never touched by CI | the running staging container |
 | Vercel project env vars | Vercel dashboard | production builds and runtime |
 
+(That table is the state *before* this ADR. The decision below replaces it with one shared config
+for local and staging, and no Doppler config for production.)
+
 Nothing reconciles those four. Rotating a secret means remembering all of the places it lives, and
 the failure mode is silent — staging happily keeps running on the old value until something that
 depends on it breaks. The `stg` and `prd` Doppler configs existed but were empty, so Doppler was
@@ -36,7 +39,7 @@ only ever doing a quarter of the job it was adopted for.
 The specific question was whether Doppler could also drive the VPS, given the free-tier-only rule
 (see the project rules). Verified 2026-09-06 with CLI v3.76.1 against this workplace:
 
-- Service tokens are available — `doppler configs tokens --project culprit --config prd` is
+- Service tokens are available — `doppler configs tokens --project culprit --config stg` is
   permitted and returns an (empty) list, so the read-only, per-config, revocable token the VPS
   needs costs nothing.
 - `doppler secrets download --no-file --format docker` emits exactly the `KEY=value` shape
@@ -76,15 +79,18 @@ GitHub keeps exactly three things besides `DOPPLER_TOKEN`: `DEPLOY_SSH_KEY`, `DE
 application reads, and a multi-line private key is the value blanket log masking handles least
 well — moving it buys nothing and adds a failure mode.
 
-The CI token and the VPS token are minted separately for the same config, so either can be revoked
-without taking the other down.
+The CI token and the VPS token are minted separately for the same shared config, so either can be
+revoked without taking the other down.
 
-**Vercel is a direct upload.** Production values are exported from Doppler and uploaded to the
-Vercel project by hand (`doppler secrets download --no-file --format env --config prd` → Vercel's
-env-var import, or `vercel env add`). Doppler's Vercel integration could sync this automatically —
-the free plan allows five config syncs — but production is the one environment where a config
-change should be a deliberate, noticed act rather than something that happens in the background
-while nobody is looking at it.
+**Local and staging share one config.** `culprit/stg` holds one set of variables and values, used
+by the local dev server, by CI and by the VPS. A developer runs `doppler setup --project culprit
+--config stg` once; CI and the VPS each hold their own read-only service token for the same config.
+There is no separate `dev` config: two configs holding identical values is the duplication this ADR
+exists to remove.
+
+**Production is out of scope for Doppler.** No production environment is deployed yet. When one is
+set up it will take its variables directly from that host's own settings, not from Doppler, and no
+`prd` config is maintained. Revisit only if a production environment is actually built.
 
 ## Alternatives considered
 
@@ -115,8 +121,8 @@ environment. Step outputs can.
   documented in [docker-vps.md](../deployment/docker-vps.md#runtime-config-from-doppler).
 - Doppler joins Supabase, R2, Turnstile, Upstash and Resend as a service the deploy path depends
   on. The `--fallback` file is what keeps that dependency from being able to stop a deploy.
-- The `stg` and `prd` configs must be populated before any of this does anything — they are empty
-  as of this ADR, and the real values still live in GitHub Actions, on the VPS and in Vercel.
+- The shared `stg` config must be populated before any of this does anything — it was empty as of
+  this ADR, and the real values lived in GitHub Actions and on the VPS.
 - CI gains a hard dependency on Doppler: if the fetch fails, no build happens. Unlike the VPS
   there is no fallback file, and that is the right trade for CI — a build with stale config is
   worse than no build.

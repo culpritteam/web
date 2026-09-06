@@ -13,6 +13,7 @@ function toAuthors(input: CreatePublicationData['authors'] | undefined): Publica
     id: `author_${index}`,
     teamMemberId: author.teamMemberId ?? null,
     name: author.name,
+    isProfileOwner: author.isProfileOwner ?? false,
     sortOrder: index,
   }));
 }
@@ -108,7 +109,13 @@ describe('publication service', () => {
   it('create() persists and audits', async () => {
     const { repository, service } = build();
     const result = await service.create(
-      { title: 'X', authors: [{ name: 'Y' }], venue: 'Z', year: 2024, link: 'https://example.com' },
+      {
+        title: 'X',
+        authors: [{ name: 'Y', isProfileOwner: false }],
+        venue: 'Z',
+        year: 2024,
+        link: 'https://example.com',
+      },
       'admin:1',
     );
     expect(result.ok).toBe(true);

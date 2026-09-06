@@ -19,6 +19,11 @@ const optionalSafeText = (max: number) =>
 /** Admin: replace the whole structured profile (singleton, full-document PUT). */
 export const updateProfileSchema = z.object({
   fullName: safeText(200),
+  /**
+   * How she is credited on a paper — "J. Jaimunk", not "Jenjira Jaimunk, PhD.". Optional: leave it
+   * empty and a self-credited byline falls back to the full name.
+   */
+  citationName: optionalSafeText(200),
   title: safeText(200),
   photoUrl: httpUrl.nullable().optional(),
   bio: optionalSafeText(5000),

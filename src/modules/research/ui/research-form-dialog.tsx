@@ -38,6 +38,7 @@ export function ResearchFormDialog({
   onOpenChange,
   research,
   members,
+  owner,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -45,6 +46,8 @@ export function ResearchFormDialog({
   research?: Research;
   /** Everyone who can be credited. Passed down from the server page — this dialog reads nothing. */
   members: BylinePerson[];
+  /** How the professor is credited on her own work, from `Profile.citationName`. */
+  owner?: { citationName: string } | null;
 }) {
   const router = useRouter();
   const isEdit = Boolean(research);
@@ -64,7 +67,11 @@ export function ResearchFormDialog({
       title: research?.title ?? '',
       // Only the two fields that get sent back — sortOrder is re-derived from this array's order.
       contributors:
-        research?.contributors.map(({ teamMemberId, name }) => ({ teamMemberId, name })) ?? [],
+        research?.contributors.map(({ teamMemberId, name, isProfileOwner }) => ({
+          teamMemberId,
+          name,
+          isProfileOwner,
+        })) ?? [],
       summary: research?.summary ?? '',
       area: research?.area ?? '',
       link: research?.link ?? '',
@@ -147,6 +154,7 @@ export function ResearchFormDialog({
               value={field.value ?? []}
               onChange={field.onChange}
               members={members}
+              owner={owner}
               externalLabel="Add an outside collaborator"
               emptyHint="No contributors listed — this will show as your own work."
             />

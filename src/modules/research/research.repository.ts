@@ -32,7 +32,12 @@ export interface ResearchRepository {
 }
 
 /** Total ordering, so the list never reshuffles between two reads. */
-const CONTRIBUTOR_ORDER = [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }];
+const CONTRIBUTOR_ORDER = [
+  // The professor first — see the note in publication.repository.ts.
+  { isProfileOwner: 'desc' as const },
+  { sortOrder: 'asc' as const },
+  { createdAt: 'asc' as const },
+];
 
 const withContributors = { contributors: { orderBy: CONTRIBUTOR_ORDER } };
 
@@ -43,6 +48,7 @@ function toContributor(row: PrismaResearchContributor): ResearchContributor {
     id: row.id,
     teamMemberId: row.teamMemberId,
     name: row.name,
+    isProfileOwner: row.isProfileOwner,
     sortOrder: row.sortOrder,
   };
 }
@@ -50,8 +56,9 @@ function toContributor(row: PrismaResearchContributor): ResearchContributor {
 /** The array's own order IS the stored order — the index becomes `sortOrder`. */
 const toContributorRows = (contributors: ResearchContributorInput[]) =>
   contributors.map((contributor, index) => ({
-    teamMemberId: contributor.teamMemberId ?? null,
+    teamMemberId: contributor.isProfileOwner ? null : (contributor.teamMemberId ?? null),
     name: contributor.name,
+    isProfileOwner: contributor.isProfileOwner,
     sortOrder: index,
   }));
 

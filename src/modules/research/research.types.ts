@@ -5,6 +5,8 @@ export type ResearchContributor = {
   id: string;
   teamMemberId: string | null;
   name: string;
+  /** The professor's own row — see `PublicationAuthor.isProfileOwner`. */
+  isProfileOwner: boolean;
   sortOrder: number;
 };
 

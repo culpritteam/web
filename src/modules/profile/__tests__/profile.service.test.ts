@@ -5,6 +5,7 @@ import type { AuditContext, Profile } from '../profile.types';
 
 const BLANK: Profile = {
   id: 'profile_1',
+  citationName: null,
   fullName: '',
   title: '',
   photoUrl: null,

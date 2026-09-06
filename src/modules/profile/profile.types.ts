@@ -8,6 +8,8 @@
 export type Profile = {
   id: string;
   fullName: string;
+  /** Byline form of the name, e.g. "J. Jaimunk". Null falls back to `fullName`. */
+  citationName: string | null;
   title: string;
   photoUrl: string | null;
   bio: string | null;

@@ -10,6 +10,7 @@ const contributor = (name: string, sortOrder: number) => ({
   id: `c${sortOrder}`,
   teamMemberId: null,
   name,
+  isProfileOwner: false,
   sortOrder,
 });
 
@@ -37,6 +38,30 @@ describe('ResearchList', () => {
     );
 
     expect(screen.getByText('With R. Lindqvist, T. Meyer')).toBeInTheDocument();
+  });
+
+  it('renders the live citation name on the professor own row, not the stored snapshot', () => {
+    render(
+      <ResearchList
+        citationName="J. Jaimunk"
+        items={[
+          research({
+            contributors: [
+              {
+                id: 'c0',
+                teamMemberId: null,
+                name: 'STALE NAME',
+                isProfileOwner: true,
+                sortOrder: 0,
+              },
+              contributor('M. Fernandez', 1),
+            ],
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('With J. Jaimunk, M. Fernandez')).toBeInTheDocument();
   });
 
   it('renders no contributor line at all when nobody is credited', () => {

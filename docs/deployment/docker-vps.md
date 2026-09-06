@@ -104,8 +104,8 @@ SSH session and a hand-edited file. See
 token instead of CI sending it one.
 
 ```bash
-# 1. In Doppler (once): populate the `stg` config with the same values .env.production holds, then
-#    mint a read-only service token for it — Dashboard → culprit → stg → Access, or:
+# 1. In Doppler (once): populate the shared `stg` config with the same values .env.production
+#    holds, then mint a read-only service token for it — Dashboard → culprit → stg → Access, or:
 doppler configs tokens create vps --project culprit --config stg --plain   # run this locally
 
 # 2. On the VPS, in ~/server/apps/culprit-web:
@@ -126,13 +126,9 @@ That is the whole setup. On the next `./deploy.sh <tag>`:
 
 Remove `.doppler-token` to go back to the hand-managed file — nothing else changes.
 
-**Production (Vercel) is not wired to Doppler.** Export from the `prd` config and upload to the
-Vercel project by hand:
-
-```bash
-doppler secrets download --no-file --format env --project culprit --config prd > vercel.env
-# Vercel → Project → Settings → Environment Variables → Import .env, then delete vercel.env
-```
+**Production is not deployed yet, and will not use Doppler.** When a production environment is
+set up, its variables are entered directly in that host's own settings. Nothing is exported from
+Doppler to it, and no `prd` config is maintained.
 
 ## Required CI configuration
 
@@ -166,8 +162,8 @@ never land in an image layer, `docker history`, or a build log.
 The action masks every fetched value in the log, including the public ones — that is the action's
 blanket behaviour, not a claim that `NEXT_PUBLIC_*` is secret.
 
-**Mint the CI token separately from the VPS token.** Two tokens for the same config, so either can
-be revoked without taking the other down:
+**Mint the CI token separately from the VPS token.** Two tokens for the same shared `stg` config,
+so either can be revoked without taking the other down:
 
 ```bash
 doppler configs tokens create github-actions --project culprit --config stg --plain

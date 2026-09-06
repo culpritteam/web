@@ -22,7 +22,18 @@ function groupByYear(items: Publication[]): { year: number; items: Publication[]
   return groups.sort((a, b) => b.year - a.year);
 }
 
-export function PublicationsList({ items }: { items: Publication[] }) {
+export function PublicationsList({
+  items,
+  citationName,
+}: {
+  items: Publication[];
+  /**
+   * `Profile.citationName`, rendered in place of the stored snapshot on the professor's own rows.
+   * Live rather than snapshotted on purpose: it is her own name, she controls it, and editing it
+   * once should re-credit every paper rather than leave 42 rows disagreeing.
+   */
+  citationName?: string | null;
+}) {
   const groups = groupByYear(items);
 
   return (
@@ -56,7 +67,11 @@ export function PublicationsList({ items }: { items: Publication[] }) {
                     professor's own work, and an empty byline line would read as missing data. */}
                 {item.authors.length > 0 && (
                   <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">
-                    {item.authors.map((author) => author.name).join(', ')}
+                    {item.authors
+                      .map((author) =>
+                        author.isProfileOwner && citationName ? citationName : author.name,
+                      )
+                      .join(', ')}
                   </p>
                 )}
                 <p className="mt-1 font-serif text-sm italic text-muted-foreground">{item.venue}</p>

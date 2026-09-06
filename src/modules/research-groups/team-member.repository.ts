@@ -18,6 +18,8 @@ export type ListTeamMembersFilter = {
    * the entire member table a second time purely to find the handful that aren't in a group.
    */
   ungroupedOnly?: boolean;
+  /** Public reads pass this so byline-only collaborators stay off the Team tab. */
+  visibleOnly?: boolean;
 };
 
 export interface TeamMemberRepository {
@@ -43,6 +45,7 @@ export function toDomain(row: PrismaTeamMember): TeamMember {
     role: row.role,
     bio: row.bio,
     photoUrl: row.photoUrl,
+    showOnTeamTab: row.showOnTeamTab,
     researchGroupId: row.researchGroupId,
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
@@ -61,11 +64,12 @@ export class PrismaTeamMemberRepository implements TeamMemberRepository {
 
   async list(filter?: ListTeamMembersFilter): Promise<TeamMember[]> {
     // `ungroupedOnly` wins if both are given — a specific group and "no group" can't both hold.
-    const where: Prisma.TeamMemberWhereInput | undefined = filter?.ungroupedOnly
+    const where: Prisma.TeamMemberWhereInput = filter?.ungroupedOnly
       ? { researchGroupId: null }
       : filter?.groupId
         ? { researchGroupId: filter.groupId }
-        : undefined;
+        : {};
+    if (filter?.visibleOnly) where.showOnTeamTab = true;
 
     const rows = await prisma.teamMember.findMany({ where, orderBy: { sortOrder: 'asc' } });
     return rows.map(toDomain);
@@ -92,6 +96,7 @@ export class PrismaTeamMemberRepository implements TeamMemberRepository {
           role: input.data.role,
           bio: input.data.bio ?? null,
           photoUrl: input.data.photoUrl ?? null,
+          showOnTeamTab: input.data.showOnTeamTab ?? true,
           researchGroupId: input.data.researchGroupId ?? null,
           sortOrder: input.data.sortOrder ?? 0,
         },
@@ -118,6 +123,7 @@ export class PrismaTeamMemberRepository implements TeamMemberRepository {
           role: input.data.role,
           bio: input.data.bio,
           photoUrl: input.data.photoUrl,
+          showOnTeamTab: input.data.showOnTeamTab,
           researchGroupId: input.data.researchGroupId,
           sortOrder: input.data.sortOrder,
         },

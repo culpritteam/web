@@ -35,6 +35,7 @@ import { PhotoUploadField } from './photo-upload-field';
 /** Every writable profile field, in the order the public site reads them. */
 export const PROFILE_FIELD_KEYS = [
   'fullName',
+  'citationName',
   'title',
   'photoUrl',
   'positionAffiliation',
@@ -78,6 +79,12 @@ const FIELD_META: Record<ProfileFieldKey, FieldMeta> = {
     kind: 'text',
     required: true,
     description: 'Shown in the site header on every public page.',
+  },
+  citationName: {
+    label: 'Name on papers',
+    kind: 'text',
+    description:
+      'How you are credited on a publication — “J. Jaimunk”, not your full display name. Used wherever you credit yourself on research or a publication; leave blank to fall back to the full name.',
   },
   title: {
     label: 'Title',

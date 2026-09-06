@@ -27,6 +27,11 @@ datasource db {
 model Profile {
   id                  String   @id @default(cuid())
   fullName            String   @map("full_name")
+  /// How she is credited on a paper — "J. Jaimunk", not "Jenjira Jaimunk, PhD.". A byline uses a
+  /// citation form that no rule reliably derives from a display name, so it is stored rather than
+  /// computed. Every `PublicationAuthor`/`ResearchContributor` row flagged `isProfileOwner` renders
+  /// this, live, so changing it here re-credits every paper at once.
+  citationName        String?  @map("citation_name")
   title               String
   photoUrl            String?  @map("photo_url")
   bio                 String?  @db.Text
@@ -103,6 +108,10 @@ model TeamMember {
   role                   String // e.g. "PhD Candidate", "Visiting Professor"
   bio                    String?               @db.Text
   photoUrl               String?               @map("photo_url")
+  /// Whether this person belongs on the public Team tab. False for a research co-author who exists
+  /// only so a byline can link to one record per person: a real collaborator, but not a member of
+  /// this site's team, and listing them beside the people who built the site misrepresents both.
+  showOnTeamTab          Boolean               @default(true) @map("show_on_team_tab")
   researchGroupId        String?               @map("research_group_id")
   researchGroup          ResearchGroup?        @relation(fields: [researchGroupId], references: [id], onDelete: SetNull)
   sortOrder              Int                   @default(0) @map("sort_order")
@@ -285,8 +294,15 @@ model PublicationAuthor {
   teamMemberId String?     @map("team_member_id")
   teamMember   TeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: SetNull)
 
-  /// Snapshot taken when the author was added. This is what renders.
+  /// Snapshot taken when the author was added. This is what renders — except on the professor's own
+  /// row, which renders `Profile.citationName` live so one edit re-credits every paper.
   name String
+
+  /// True on the professor's own row. She is not a `TeamMember` — she owns the site rather than
+  /// being one of its researchers — so without this she could only be credited by typing her name
+  /// as though she were an outside collaborator. The row renders `Profile.citationName` and always
+  /// sorts first, whatever `sortOrder` says.
+  isProfileOwner Boolean @default(false) @map("is_profile_owner")
 
   /// Author position. Unlike every other `sortOrder` in this schema this is not a display
   /// preference — first author and last author carry meaning in a citation, so the order the admin
@@ -313,8 +329,15 @@ model ResearchContributor {
   teamMemberId String?     @map("team_member_id")
   teamMember   TeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: SetNull)
 
-  /// Snapshot taken when the contributor was added. This is what renders.
+  /// Snapshot taken when the contributor was added. This is what renders — except on the
+  /// professor's own row; see `PublicationAuthor.isProfileOwner`.
   name String
+
+  /// True on the professor's own row. She is not a `TeamMember` — she owns the site rather than
+  /// being one of its researchers — so without this she could only be credited by typing her name
+  /// as though she were an outside collaborator. The row renders `Profile.citationName` and always
+  /// sorts first, whatever `sortOrder` says.
+  isProfileOwner Boolean @default(false) @map("is_profile_owner")
 
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")

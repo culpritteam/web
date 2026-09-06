@@ -1,16 +1,23 @@
 ---
-status: current
-source_of_truth: true
-last_updated: 2026-08-12
+status: superseded
+source_of_truth: false
+last_updated: 2026-09-06
+superseded_by: ADR-014
 related_modules: [shared]
-related_decisions: [ADR-008]
+related_decisions: [ADR-008, ADR-013, ADR-014]
 ---
 
 # ADR-009: Drop Vercel, self-hosted VPS is the sole deployment target
 
 ## Status
 
-Accepted
+**Superseded by [ADR-014](ADR-014-hosting-and-service-split.md) on 2026-09-06.**
+
+The decision below no longer describes the running system. Vercel is production, built from the
+`culpritteam/web` mirror; the VPS is staging. The context section remains accurate as a record of
+what was true on 2026-08-12, which is why this file is kept rather than deleted.
+
+Original status: Accepted
 
 ## Date
 
@@ -67,5 +74,8 @@ working.
 
 ## Supersedes / Superseded by
 
-Does not supersede any prior ADR outright. Narrows the deployment-target scope that ADR-001,
-ADR-007, and ADR-008 each assumed at the time they were written, without rewriting them.
+**Superseded by [ADR-014](ADR-014-hosting-and-service-split.md).**
+
+Did not supersede any prior ADR outright. It narrowed the deployment-target scope that ADR-001,
+ADR-007 and ADR-008 each assumed when they were written. ADR-014 widens it again to two supported
+targets.

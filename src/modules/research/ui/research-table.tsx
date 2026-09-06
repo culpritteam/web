@@ -24,10 +24,12 @@ import { ResearchFormDialog } from './research-form-dialog';
 export function ResearchTable({
   items,
   members = [],
+  owner,
 }: {
   items: Research[];
   /** Everyone creditable, for the contributor picker. Defaults to none so the table renders alone. */
   members?: BylinePerson[];
+  owner?: { citationName: string } | null;
 }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Research | undefined>(undefined);
@@ -108,6 +110,7 @@ export function ResearchTable({
         onOpenChange={setFormOpen}
         research={editing}
         members={members}
+        owner={owner}
       />
 
       <ConfirmDialog

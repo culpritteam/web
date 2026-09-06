@@ -15,6 +15,7 @@ function toContributors(
     id: `contributor_${index}`,
     teamMemberId: contributor.teamMemberId ?? null,
     name: contributor.name,
+    isProfileOwner: contributor.isProfileOwner ?? false,
     sortOrder: index,
   }));
 }
