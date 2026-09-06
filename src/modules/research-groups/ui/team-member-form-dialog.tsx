@@ -77,6 +77,7 @@ export function TeamMemberFormDialog({
       nickname: member?.nickname ?? '',
       photoUrl: member?.photoUrl ?? '',
       researchGroupId: member?.researchGroupId ?? '',
+      showOnTeamTab: member?.showOnTeamTab ?? true,
       sortOrder: member?.sortOrder ?? 0,
     },
   });
@@ -107,6 +108,23 @@ export function TeamMemberFormDialog({
         noValidate
         className="flex flex-col gap-4"
       >
+        {/* A plain checkbox rather than a shared component: this is the only one in the app, and a
+            Checkbox abstraction with a single caller would be scaffolding. */}
+        <label className="flex items-start gap-2.5 text-sm text-foreground">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 accent-accent"
+            {...register('showOnTeamTab')}
+          />
+          <span>
+            Show on the public Team tab
+            <span className="block text-xs text-muted-foreground">
+              Leave unticked for a research co-author who exists only so publication bylines can
+              link to one record per person.
+            </span>
+          </span>
+        </label>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Name" htmlFor="member-name" required error={errors.name?.message}>
             {(fieldProps) => <Input {...fieldProps} {...register('name')} />}

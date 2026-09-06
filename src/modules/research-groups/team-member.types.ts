@@ -8,6 +8,12 @@ export type TeamMember = {
   role: string;
   bio: string | null;
   photoUrl: string | null;
+  /**
+   * Whether this person belongs on the public Team tab. False for a research co-author created only
+   * so their name can be linked across papers — a real collaborator, but not a member of this site's
+   * team. Flip it on to promote them once they have a role and a bio.
+   */
+  showOnTeamTab: boolean;
   researchGroupId: string | null;
   sortOrder: number;
   createdAt: Date;

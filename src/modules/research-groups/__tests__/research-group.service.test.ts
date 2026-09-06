@@ -130,6 +130,7 @@ describe('research group service', () => {
       role: 'PhD',
       bio: null,
       photoUrl: null,
+      showOnTeamTab: true,
       researchGroupId,
       sortOrder: 0,
       createdAt: new Date('2026-08-05T00:00:00Z'),
