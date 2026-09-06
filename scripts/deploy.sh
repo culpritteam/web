@@ -16,6 +16,10 @@
 set -euo pipefail
 
 COMPOSE_FILE="docker-compose.production.yml"
+ENV_FILE=".env.production"
+# Read-only Doppler service token for this environment's config, one line, chmod 600. Optional —
+# see step 1b.
+DOPPLER_TOKEN_FILE=".doppler-token"
 SERVICE="app"
 REGISTRY="ghcr.io"
 IMAGE_REPO="${IMAGE_REPO:-ghcr.io/wyco68/culpritweb}"
@@ -33,7 +37,36 @@ IMAGE_TAG="${1:-}"
 [ -n "$IMAGE_TAG" ] || die "usage: $0 <image-tag>  (e.g. sha-abc1234 or latest)"
 
 [ -f "$COMPOSE_FILE" ] || die "$COMPOSE_FILE not found — run this from the deploy directory."
-[ -f ".env.production" ] || die ".env.production not found — copy .env.example and fill in real values."
+
+# ---- 1b. Refresh runtime config from Doppler, if this box is wired to it --------------------
+# Opt-in: drop a read-only Doppler service token for this environment's config into
+# $DOPPLER_TOKEN_FILE and every deploy regenerates $ENV_FILE from Doppler, so a rotated secret
+# takes effect on the next deploy instead of needing a hand-edit on the box. Without that file
+# nothing changes — $ENV_FILE stays the hand-managed file it has always been.
+#
+# CI still never sends secrets here: the token is bootstrapped once by hand and the VPS pulls its
+# own config. --fallback keeps an encrypted copy of the last successful fetch, so a Doppler
+# outage degrades to "deploy with the previous values" instead of failing or, worse, writing an
+# empty env file over a working one.
+if [ -f "$DOPPLER_TOKEN_FILE" ]; then
+  command -v doppler >/dev/null 2>&1 || die "$DOPPLER_TOKEN_FILE exists but the Doppler CLI is not installed."
+  log "refreshing $ENV_FILE from Doppler"
+  DOPPLER_TOKEN="$(tr -d '
+' < "$DOPPLER_TOKEN_FILE")"
+  export DOPPLER_TOKEN
+  TMP_ENV="$(mktemp)"
+  # `docker` format is KEY=value with no quoting — what compose's env_file expects.
+  if doppler secrets download --no-file --format docker        --fallback ".doppler-fallback.json" > "$TMP_ENV" && [ -s "$TMP_ENV" ]; then
+    install -m 600 "$TMP_ENV" "$ENV_FILE"
+    log "$ENV_FILE refreshed ($(wc -l < "$TMP_ENV" | tr -d ' ') vars)"
+  else
+    [ -f "$ENV_FILE" ] || die "Doppler fetch failed and there is no existing $ENV_FILE to fall back on."
+    log "WARNING: Doppler fetch failed — deploying with the existing $ENV_FILE"
+  fi
+  rm -f "$TMP_ENV"
+fi
+
+[ -f "$ENV_FILE" ] || die "$ENV_FILE not found — copy .env.example and fill in real values, or add $DOPPLER_TOKEN_FILE."
 
 command -v docker >/dev/null 2>&1 || die "docker is not installed."
 docker compose version >/dev/null 2>&1 || die "docker compose plugin is not installed."
