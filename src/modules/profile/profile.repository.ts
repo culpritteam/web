@@ -31,6 +31,7 @@ export interface ProfileRepository {
  */
 type ProfileWritableFields = {
   fullName?: string;
+  citationName?: string | null;
   title?: string;
   photoUrl?: string | null;
   bio?: string | null;
@@ -48,6 +49,7 @@ type ProfileWritableFields = {
 
 /** Nullable columns, in one list so full-write and partial-write stay in step. */
 const NULLABLE_FIELDS = [
+  'citationName',
   'photoUrl',
   'bio',
   'positionAffiliation',
@@ -66,6 +68,7 @@ function toDomain(row: PrismaProfile): Profile {
   return {
     id: row.id,
     fullName: row.fullName,
+    citationName: row.citationName,
     title: row.title,
     photoUrl: row.photoUrl,
     bio: row.bio,
