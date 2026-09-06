@@ -44,14 +44,18 @@ migrations, connection pooling) is the platform-agnostic part that pipeline reli
 
 ## Secrets & environment config
 
-Three environments, two mechanisms — see
-[ADR-013](../decisions/ADR-013-doppler-secrets-across-environments.md).
+Local and staging read **one shared Doppler config**, `culprit/stg` — same variables, same values,
+one place to edit. See [ADR-013](../decisions/ADR-013-doppler-secrets-across-environments.md).
 
 | Environment | Source of truth | How it gets there |
 |---|---|---|
-| Local | Doppler `culprit/dev` | `doppler run --` wraps `dev`, `start`, `db:migrate`, `db:seed`; Playwright inherits it through `npm run dev` |
+| Local | Doppler `culprit/stg` | `doppler run --` wraps `dev`, `start`, `db:migrate`, `db:seed`; Playwright inherits it through `npm run dev`. Point the local checkout at it once with `doppler setup --project culprit --config stg` |
 | Staging (VPS) | Doppler `culprit/stg` | `scripts/deploy.sh` regenerates `.env.production` from a read-only service token held on the box — [setup](docker-vps.md#runtime-config-from-doppler). Opt-in: without `.doppler-token` the file stays hand-managed |
-| Production (Vercel) | Doppler `culprit/prd` | **Manual.** Export and upload to the Vercel project; nothing syncs automatically |
+| Production | **Not deployed yet** | When it exists it will **not** use Doppler. Its values are entered directly in the host's own settings |
+
+No config name is hardcoded anywhere in the repo: `package.json` calls bare `doppler run --`, and
+CI and the VPS each select the config purely by which service token they hold. Sharing one config
+is therefore an operational change (local `doppler setup` plus the two tokens), not a code change.
 
 CI reads the same `stg` config: `.github/workflows/docker.yml` fetches it per job with
 [`dopplerhq/secrets-fetch-action`](https://github.com/DopplerHQ/secrets-fetch-action) and a
