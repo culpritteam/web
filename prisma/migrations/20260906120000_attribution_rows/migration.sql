@@ -48,32 +48,43 @@ ALTER TABLE "research_contributor" ADD CONSTRAINT "research_contributor_research
 -- AddForeignKey
 ALTER TABLE "research_contributor" ADD CONSTRAINT "research_contributor_team_member_id_fkey" FOREIGN KEY ("team_member_id") REFERENCES "team_member"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- Backfill: split each publication's comma-separated `authors` string into ordered rows.
+-- Backfill: split each publication's existing `authors` string into ordered rows.
 --
--- WITH ORDINALITY preserves the written order, which is the citation order. Whitespace is trimmed
--- and empty fragments (a trailing comma, "A. Osei, , B. Lee") are dropped, so `sort_order` can skip
--- a number — it only has to be monotonic, never contiguous.
+-- The real bylines are written the way a citation is, not as a plain comma list:
+--   "M. Fernandez, J. Jaimunk and B. Thuraisingham (alphabetical order)"
+-- so the separator is a comma OR the word "and", and a trailing "(alphabetical order)" annotation
+-- is stripped rather than glued onto the last author's name. Splitting on commas alone would have
+-- produced "J. Jaimunk and B. Thuraisingham (alphabetical order)" as a single author.
 --
--- Ids are derived from the parent id rather than randomly generated, so this statement is
--- deterministic and safe to re-run against a truncated table.
+-- Multi-word surnames survive this ("A. Franch Tapia", "M. Martinez Chamorro"): only a separator
+-- splits, never a space. WITH ORDINALITY preserves the written order, which is the citation order.
+-- Empty fragments are dropped, so `sort_order` can skip a number — it only has to be monotonic.
 --
--- Every backfilled row is unlinked (`team_member_id` NULL). Linking a historical byline to a team
--- member is a judgement call about which "R. Lindqvist" is meant; the admin makes it in the UI.
+-- Ids are derived from the parent id rather than randomly generated, so this is deterministic and
+-- safe to re-run against a truncated table.
+--
+-- Every backfilled row is unlinked (`team_member_id` NULL). Deciding which "J. Jaimunk" a 2013
+-- byline meant is a judgement call the admin makes in the UI, not one a migration guesses.
+--
+-- KNOWN LOSS: the "(alphabetical order)" annotation on five publications has nowhere to go — it
+-- describes the byline, not any one author, and the new model has no field for it. The original
+-- strings are kept in `.backups/publication-authors-2026-09-06.json` so it can be restored if a
+-- note column is ever added.
 INSERT INTO "publication_author" ("id", "publication_id", "team_member_id", "name", "sort_order", "created_at", "updated_at")
 SELECT
     p."id" || '-a' || t.ord,
     p."id",
     NULL,
-    btrim(t.part),
+    btrim(regexp_replace(t.part, '\s*\(alphabetical order\)\s*$', '')),
     (t.ord - 1)::int,
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
 FROM "publication" p,
-     unnest(string_to_array(p."authors", ',')) WITH ORDINALITY AS t(part, ord)
-WHERE btrim(t.part) <> '';
+     unnest(regexp_split_to_array(p."authors", ',\s*|\s+and\s+')) WITH ORDINALITY AS t(part, ord)
+WHERE btrim(regexp_replace(t.part, '\s*\(alphabetical order\)\s*$', '')) <> '';
 
 -- DropColumn
--- Irreversible, and lossy for a name that itself contains a comma ("Smith, Jr., J." becomes two
--- rows). Inspect `SELECT id, authors FROM publication;` and take a `pg_dump -t publication` before
--- applying this against the shared Supabase database.
+-- Irreversible. The 16 original strings were inspected and saved to
+-- `.backups/publication-authors-2026-09-06.json` before this was applied against the shared
+-- Supabase database; nothing else can recover them.
 ALTER TABLE "publication" DROP COLUMN "authors";
