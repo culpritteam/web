@@ -1,4 +1,4 @@
-// research module — research works CRUD (title, summary, area, sortOrder).
+// research module — research works CRUD (title, summary, area, contributors, sortOrder).
 
 export {
   createResearchSchema,
@@ -7,7 +7,7 @@ export {
   type UpdateResearchInput,
 } from './research.schema';
 
-export type { Research, ResearchStats, AuditContext } from './research.types';
+export type { Research, ResearchContributor, ResearchStats, AuditContext } from './research.types';
 
 export {
   createResearchService,

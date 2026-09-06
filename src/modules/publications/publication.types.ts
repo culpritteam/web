@@ -1,9 +1,22 @@
 // Domain model — the shape services/routes work with. Mapped from the Prisma row inside the
 // repository so Prisma's generated types never leak across the service boundary.
+/**
+ * One credited author. `teamMemberId` is null for an outside co-author, and is also nulled when a
+ * linked member is deleted — `name` is a snapshot taken when the row was written, so the byline
+ * survives either way.
+ */
+export type PublicationAuthor = {
+  id: string;
+  teamMemberId: string | null;
+  name: string;
+  sortOrder: number;
+};
+
 export type Publication = {
   id: string;
   title: string;
-  authors: string;
+  /** In citation order. Empty means the professor's own solo work and renders no byline. */
+  authors: PublicationAuthor[];
   venue: string;
   year: number;
   link: string | null;

@@ -1,8 +1,15 @@
 import { prisma } from '@/modules/shared/lib/prisma';
 import { auditLogData } from '@/modules/shared/lib/audit';
-import type { Research as PrismaResearch } from '@prisma/client';
-import type { AuditContext, Research, ResearchStats } from './research.types';
-import type { CreateResearchInput, UpdateResearchInput } from './research.schema';
+import type {
+  Research as PrismaResearch,
+  ResearchContributor as PrismaResearchContributor,
+} from '@prisma/client';
+import type { AuditContext, Research, ResearchContributor, ResearchStats } from './research.types';
+import type {
+  CreateResearchInput,
+  ResearchContributorInput,
+  UpdateResearchInput,
+} from './research.schema';
 
 // The ONLY place Prisma is used for research data. No business rules here — the service decides
 // WHAT to write; the repository just persists it atomically alongside its audit entry.
@@ -24,13 +31,38 @@ export interface ResearchRepository {
   deleteWithAudit(input: { id: string; audit: AuditContext }): Promise<void>;
 }
 
-function toDomain(row: PrismaResearch): Research {
+/** Total ordering, so the list never reshuffles between two reads. */
+const CONTRIBUTOR_ORDER = [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }];
+
+const withContributors = { contributors: { orderBy: CONTRIBUTOR_ORDER } };
+
+type PrismaResearchRow = PrismaResearch & { contributors: PrismaResearchContributor[] };
+
+function toContributor(row: PrismaResearchContributor): ResearchContributor {
+  return {
+    id: row.id,
+    teamMemberId: row.teamMemberId,
+    name: row.name,
+    sortOrder: row.sortOrder,
+  };
+}
+
+/** The array's own order IS the stored order — the index becomes `sortOrder`. */
+const toContributorRows = (contributors: ResearchContributorInput[]) =>
+  contributors.map((contributor, index) => ({
+    teamMemberId: contributor.teamMemberId ?? null,
+    name: contributor.name,
+    sortOrder: index,
+  }));
+
+function toDomain(row: PrismaResearchRow): Research {
   return {
     id: row.id,
     title: row.title,
     summary: row.summary,
     area: row.area,
     link: row.link,
+    contributors: row.contributors.map(toContributor),
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -42,12 +74,16 @@ const auditData = (audit: AuditContext, entityId: string) =>
 
 export class PrismaResearchRepository implements ResearchRepository {
   async findById(id: string): Promise<Research | null> {
-    const row = await prisma.research.findUnique({ where: { id } });
+    const row = await prisma.research.findUnique({ where: { id }, include: withContributors });
     return row ? toDomain(row) : null;
   }
 
   async list(): Promise<Research[]> {
-    const rows = await prisma.research.findMany({ orderBy: { sortOrder: 'asc' } });
+    // One extra query for the whole page, not one per row — and every consumer wants the names.
+    const rows = await prisma.research.findMany({
+      orderBy: { sortOrder: 'asc' },
+      include: withContributors,
+    });
     return rows.map(toDomain);
   }
 
@@ -77,8 +113,10 @@ export class PrismaResearchRepository implements ResearchRepository {
           summary: input.data.summary,
           area: input.data.area,
           link: input.data.link ?? null,
+          contributors: { create: toContributorRows(input.data.contributors) },
           sortOrder: input.data.sortOrder ?? 0,
         },
+        include: withContributors,
       });
       await tx.auditLog.create({ data: auditData(input.audit, row.id) });
       return row;
@@ -104,8 +142,20 @@ export class PrismaResearchRepository implements ResearchRepository {
           sortOrder: input.data.sortOrder,
         },
       });
+      // Replaced wholesale rather than diffed — see the note in publication.repository.ts. An
+      // absent `contributors` key still means "leave it alone".
+      if (input.data.contributors) {
+        await tx.researchContributor.deleteMany({ where: { researchId: row.id } });
+        await tx.researchContributor.createMany({
+          data: toContributorRows(input.data.contributors).map((contributor) => ({
+            ...contributor,
+            researchId: row.id,
+          })),
+        });
+      }
+
       await tx.auditLog.create({ data: auditData(input.audit, row.id) });
-      return row;
+      return tx.research.findUniqueOrThrow({ where: { id: row.id }, include: withContributors });
     });
     return toDomain(updated);
   }

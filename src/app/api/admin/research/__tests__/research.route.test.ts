@@ -66,7 +66,9 @@ describe('POST /api/admin/research', () => {
     );
     expect(res.status).toBe(201);
     expect(create).toHaveBeenCalledWith(
-      { title: 'Malware Analysis', summary: 'Summary', area: 'security' },
+      // `contributors` defaults to an empty list — the schema fills it in, which is how a solo
+      // research item is expressed.
+      { title: 'Malware Analysis', summary: 'Summary', area: 'security', contributors: [] },
       'admin:u1',
     );
   });

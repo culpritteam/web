@@ -50,29 +50,34 @@ model Profile {
 }
 
 model Research {
-  id        String   @id @default(cuid())
-  title     String
-  summary   String   @db.Text
-  area      String
+  id           String                @id @default(cuid())
+  title        String
+  summary      String                @db.Text
+  area         String
   /// Optional external link — a project page, tool listing, or artefact repository.
-  link      String?
-  sortOrder Int      @default(0) @map("sort_order")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  link         String?
+  /// Who worked on this, in display order. Empty is the common case and means the professor's own
+  /// solo work — see `ResearchContributor`.
+  contributors ResearchContributor[]
+  sortOrder    Int                   @default(0) @map("sort_order")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @updatedAt @map("updated_at")
 
   @@map("research")
 }
 
 model Publication {
-  id        String   @id @default(cuid())
+  id        String              @id @default(cuid())
   title     String
-  authors   String
+  /// Credited authors in citation order. This replaced a free-text `authors` column on 2026-09-06
+  /// (ADR-015); empty means the professor's own solo work — see `PublicationAuthor`.
+  authors   PublicationAuthor[]
   venue     String
   year      Int
   /// Nullable: conference and book-chapter entries frequently have no stable public URL.
   link      String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
 
   @@map("publication")
 }
@@ -89,23 +94,28 @@ model ResearchGroup {
 }
 
 model TeamMember {
-  id                  String             @id @default(cuid())
-  name                String
+  id                     String                @id @default(cuid())
+  name                   String
   /// What this person actually goes by — "Wyco" for Win Moe Aung. Its own column rather than a
   /// "Short name: X." sentence at the front of the bio, which is where it used to live: that made
   /// it unsearchable, unformattable, and impossible to render anywhere the full bio didn't fit.
-  nickname            String?
-  role                String // e.g. "PhD Candidate", "Visiting Professor"
-  bio                 String?            @db.Text
-  photoUrl            String?            @map("photo_url")
-  researchGroupId     String?            @map("research_group_id")
-  researchGroup       ResearchGroup?     @relation(fields: [researchGroupId], references: [id], onDelete: SetNull)
-  sortOrder           Int                @default(0) @map("sort_order")
+  nickname               String?
+  role                   String // e.g. "PhD Candidate", "Visiting Professor"
+  bio                    String?               @db.Text
+  photoUrl               String?               @map("photo_url")
+  researchGroupId        String?               @map("research_group_id")
+  researchGroup          ResearchGroup?        @relation(fields: [researchGroupId], references: [id], onDelete: SetNull)
+  sortOrder              Int                   @default(0) @map("sort_order")
   /// Soft links from events this member was added to. The event rows snapshot their own copy of
   /// the name/role, so deleting this member nulls the link without erasing event history.
-  eventParticipations EventParticipant[]
-  createdAt           DateTime           @default(now()) @map("created_at")
-  updatedAt           DateTime           @updatedAt @map("updated_at")
+  eventParticipations    EventParticipant[]
+  /// Soft links from the publications and research this member is credited on. Those rows snapshot
+  /// their own copy of the name too, so deleting this member nulls the link without erasing a
+  /// published byline.
+  publicationAuthorships PublicationAuthor[]
+  researchContributions  ResearchContributor[]
+  createdAt              DateTime              @default(now()) @map("created_at")
+  updatedAt              DateTime              @updatedAt @map("updated_at")
 
   @@index([researchGroupId])
   @@map("team_member")
@@ -239,6 +249,80 @@ model EventParticipant {
   @@unique([eventId, teamMemberId])
   @@index([eventId])
   @@map("event_participant")
+}
+
+// --- Attribution ---------------------------------------------------------------------------------
+// Who a publication or a research item is credited to. Modelled as rows, not columns, and this is
+// the whole point: much of this site's content is the professor's own solo work, and a nullable
+// `author_id` / `research_group_id` on every row would have meant a NULL on most of them. An empty
+// list says "his own work" without storing anything at all to say it, and the same shape scales to
+// a paper with six co-authors.
+//
+// Both models copy `EventParticipant`: explicit join row, cascade from the parent, a soft link to
+// the team member that is nulled rather than cascaded, and a snapshot of what renders.
+
+/// Who a publication is credited to, in citation order — the site's own team members and outside
+/// co-authors in one list.
+///
+/// This replaced a single free-text `authors` column (2026-09-06, ADR-015). That column could
+/// render a byline and nothing else: it could not link a name to a team member, could not be
+/// filtered by person, and duplicated a name the `team_member` table already held.
+///
+/// Every row carries its own `name`, copied from the team member when it was added rather than read
+/// through the relation. A citation is a fixed historical fact — renaming a member, or deleting
+/// them, must not rewrite a published byline. `teamMemberId` is a soft link kept so the same person
+/// cannot be credited twice and so the admin can pick people instead of retyping them.
+///
+/// Only `name` is snapshotted, unlike `EventParticipant`, which also freezes role and photo: an
+/// event card renders a person, a byline renders a name. A snapshot column nothing displays could
+/// only ever drift.
+model PublicationAuthor {
+  id            String      @id @default(cuid())
+  publicationId String      @map("publication_id")
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+
+  /// Null for an outside co-author, and nulled if the linked member is later deleted.
+  teamMemberId String?     @map("team_member_id")
+  teamMember   TeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: SetNull)
+
+  /// Snapshot taken when the author was added. This is what renders.
+  name String
+
+  /// Author position. Unlike every other `sortOrder` in this schema this is not a display
+  /// preference — first author and last author carry meaning in a citation, so the order the admin
+  /// arranged is part of the record.
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// One row per member per publication. Postgres treats NULLs as distinct, so this constrains
+  /// linked members without limiting how many outside co-authors a paper can have.
+  @@unique([publicationId, teamMemberId])
+  @@index([publicationId])
+  @@map("publication_author")
+}
+
+/// Who worked on a research item. Same shape and same reasoning as `PublicationAuthor` — read its
+/// comment. The one difference: `sortOrder` here is display order only, with no citation meaning.
+model ResearchContributor {
+  id         String   @id @default(cuid())
+  researchId String   @map("research_id")
+  research   Research @relation(fields: [researchId], references: [id], onDelete: Cascade)
+
+  /// Null for an outside collaborator, and nulled if the linked member is later deleted.
+  teamMemberId String?     @map("team_member_id")
+  teamMember   TeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: SetNull)
+
+  /// Snapshot taken when the contributor was added. This is what renders.
+  name String
+
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([researchId, teamMemberId])
+  @@index([researchId])
+  @@map("research_contributor")
 }
 
 // --- Better Auth (single admin) ---------------------------------------------------------------

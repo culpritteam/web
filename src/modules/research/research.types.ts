@@ -1,11 +1,21 @@
 // Domain model — the shape services/routes work with. Mapped from the Prisma row inside the
 // repository so Prisma's generated types never leak across the service boundary.
+/** One credited contributor. Same shape and same rules as `PublicationAuthor`. */
+export type ResearchContributor = {
+  id: string;
+  teamMemberId: string | null;
+  name: string;
+  sortOrder: number;
+};
+
 export type Research = {
   id: string;
   title: string;
   summary: string;
   area: string;
   link: string | null;
+  /** In display order. Empty means the professor's own solo work and renders no byline. */
+  contributors: ResearchContributor[];
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;

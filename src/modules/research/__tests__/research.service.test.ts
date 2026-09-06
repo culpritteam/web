@@ -1,7 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createResearchService } from '../research.service';
-import type { ResearchRepository } from '../research.repository';
-import type { AuditContext, Research } from '../research.types';
+import type {
+  CreateResearchData,
+  ResearchRepository,
+  UpdateResearchData,
+} from '../research.repository';
+import type { AuditContext, Research, ResearchContributor } from '../research.types';
+
+/** The repository turns the submitted array into rows; the fake does the same, minimally. */
+function toContributors(
+  input: CreateResearchData['contributors'] | undefined,
+): ResearchContributor[] {
+  return (input ?? []).map((contributor, index) => ({
+    id: `contributor_${index}`,
+    teamMemberId: contributor.teamMemberId ?? null,
+    name: contributor.name,
+    sortOrder: index,
+  }));
+}
 
 class FakeRepository implements ResearchRepository {
   store = new Map<string, Research>();
@@ -32,7 +48,7 @@ class FakeRepository implements ResearchRepository {
   }
 
   async createWithAudit(input: {
-    data: Partial<Research>;
+    data: CreateResearchData;
     audit: AuditContext;
   }): Promise<Research> {
     const id = `res_${++this.seq}`;
@@ -43,6 +59,7 @@ class FakeRepository implements ResearchRepository {
       summary: input.data.summary ?? '',
       area: input.data.area ?? '',
       link: null,
+      contributors: toContributors(input.data.contributors),
       sortOrder: input.data.sortOrder ?? 0,
       createdAt: now,
       updatedAt: now,
@@ -54,7 +71,7 @@ class FakeRepository implements ResearchRepository {
 
   async updateWithAudit(input: {
     id: string;
-    data: Partial<Research>;
+    data: UpdateResearchData;
     audit: AuditContext;
   }): Promise<Research> {
     const current = this.store.get(input.id);
@@ -62,6 +79,10 @@ class FakeRepository implements ResearchRepository {
     const updated: Research = {
       ...current,
       ...input.data,
+      // An absent key leaves the stored list alone, exactly as the real repository does.
+      contributors: input.data.contributors
+        ? toContributors(input.data.contributors)
+        : current.contributors,
       updatedAt: new Date('2026-08-05T01:00:00Z'),
     };
     this.store.set(input.id, updated);
@@ -88,7 +109,13 @@ describe('research service', () => {
   it('create() persists and audits', async () => {
     const { repository, service } = build();
     const result = await service.create(
-      { title: 'Malware Analysis', summary: 'Summary', area: 'security', sortOrder: 1 },
+      {
+        title: 'Malware Analysis',
+        summary: 'Summary',
+        area: 'security',
+        contributors: [],
+        sortOrder: 1,
+      },
       'admin:1',
     );
     expect(result.ok).toBe(true);
@@ -105,6 +132,7 @@ describe('research service', () => {
       summary: 's',
       area: 'x',
       link: null,
+      contributors: [],
       sortOrder: 2,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -115,6 +143,7 @@ describe('research service', () => {
       summary: 's',
       area: 'x',
       link: null,
+      contributors: [],
       sortOrder: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -140,6 +169,7 @@ describe('research service', () => {
       summary: 's',
       area: 'x',
       link: null,
+      contributors: [],
       sortOrder: 2,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -167,6 +197,7 @@ describe('research service', () => {
         summary: 's',
         area,
         link: null,
+        contributors: [],
         sortOrder,
         createdAt: new Date(),
         updatedAt: new Date(),

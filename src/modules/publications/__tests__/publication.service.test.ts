@@ -1,7 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPublicationService } from '../publication.service';
-import type { PublicationRepository } from '../publication.repository';
-import type { AuditContext, Publication } from '../publication.types';
+import type {
+  CreatePublicationData,
+  PublicationRepository,
+  UpdatePublicationData,
+} from '../publication.repository';
+import type { AuditContext, Publication, PublicationAuthor } from '../publication.types';
+
+/** The repository turns the submitted array into rows; the fake does the same, minimally. */
+function toAuthors(input: CreatePublicationData['authors'] | undefined): PublicationAuthor[] {
+  return (input ?? []).map((author, index) => ({
+    id: `author_${index}`,
+    teamMemberId: author.teamMemberId ?? null,
+    name: author.name,
+    sortOrder: index,
+  }));
+}
 
 class FakeRepository implements PublicationRepository {
   store = new Map<string, Publication>();
@@ -36,7 +50,7 @@ class FakeRepository implements PublicationRepository {
   }
 
   async createWithAudit(input: {
-    data: Partial<Publication>;
+    data: CreatePublicationData;
     audit: AuditContext;
   }): Promise<Publication> {
     const id = `pub_${++this.seq}`;
@@ -44,7 +58,7 @@ class FakeRepository implements PublicationRepository {
     const publication: Publication = {
       id,
       title: input.data.title ?? '',
-      authors: input.data.authors ?? '',
+      authors: toAuthors(input.data.authors),
       venue: input.data.venue ?? '',
       year: input.data.year ?? 2024,
       link: input.data.link ?? '',
@@ -58,7 +72,7 @@ class FakeRepository implements PublicationRepository {
 
   async updateWithAudit(input: {
     id: string;
-    data: Partial<Publication>;
+    data: UpdatePublicationData;
     audit: AuditContext;
   }): Promise<Publication> {
     const current = this.store.get(input.id);
@@ -66,6 +80,8 @@ class FakeRepository implements PublicationRepository {
     const updated: Publication = {
       ...current,
       ...input.data,
+      // An absent key leaves the stored list alone, exactly as the real repository does.
+      authors: input.data.authors ? toAuthors(input.data.authors) : current.authors,
       updatedAt: new Date('2026-08-05T01:00:00Z'),
     };
     this.store.set(input.id, updated);
@@ -92,7 +108,7 @@ describe('publication service', () => {
   it('create() persists and audits', async () => {
     const { repository, service } = build();
     const result = await service.create(
-      { title: 'X', authors: 'Y', venue: 'Z', year: 2024, link: 'https://example.com' },
+      { title: 'X', authors: [{ name: 'Y' }], venue: 'Z', year: 2024, link: 'https://example.com' },
       'admin:1',
     );
     expect(result.ok).toBe(true);
@@ -104,7 +120,7 @@ describe('publication service', () => {
     repository.seed({
       id: 'old',
       title: 'Old',
-      authors: 'A',
+      authors: [],
       venue: 'V',
       year: 2020,
       link: 'https://example.com',
@@ -114,7 +130,7 @@ describe('publication service', () => {
     repository.seed({
       id: 'new',
       title: 'New',
-      authors: 'A',
+      authors: [],
       venue: 'V',
       year: 2024,
       link: 'https://example.com',
@@ -138,7 +154,7 @@ describe('publication service', () => {
     repository.seed({
       id: 'pub_1',
       title: 'X',
-      authors: 'Y',
+      authors: [],
       venue: 'Z',
       year: 2024,
       link: 'https://example.com',
@@ -157,7 +173,7 @@ describe('publication service', () => {
       repository.seed({
         id,
         title: id,
-        authors: 'A',
+        authors: [],
         venue: 'V',
         year,
         link: null,
