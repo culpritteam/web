@@ -2,12 +2,13 @@
 
 import { useId, useRef, useState } from 'react';
 import Image from 'next/image';
-import { Loader2, Plus, Upload, X } from 'lucide-react';
+import { Plus, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiRequest } from '@/modules/shared/lib/api-client';
 import { Button } from '@/modules/shared/ui/button';
 import { Input } from '@/modules/shared/ui/input';
 import { Label } from '@/modules/shared/ui/label';
+import { FRAMER_ACCEPTED_TYPES, PhotoFramer } from '@/modules/shared/ui/photo-framer';
 import { parseYouTubeVideoId } from '@/modules/integrations/youtube/youtube-utils';
 
 // The two media pickers on the event form. Both are controlled from the dialog's RHF state via
@@ -19,70 +20,17 @@ import { parseYouTubeVideoId } from '@/modules/integrations/youtube/youtube-util
 // records. Presenting them as one uniform "media" widget would hide that difference from the
 // admin, who does need to know that removing a video here does not delete anything anywhere.
 
-const ACCEPTED_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif';
 const MAX_PHOTOS = 20;
 const MAX_VIDEOS = 10;
 
-// Kept in step with the server's own cap (modules/integrations/storage/uploaded-photo.ts). A phone
-// photo is routinely 5–12 MB, well over this, which is the single most common reason an upload was
-// rejected with a 400 before `prepareForUpload` shrank it here.
-const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
-// Longest edge kept after downscale. A public gallery tile is a few hundred px; 2000 leaves plenty
-// of headroom for a full-bleed view without shipping a 6000px original.
-const MAX_EDGE = 2000;
+// Edge of the uploaded square, in px. Larger than the profile's 512 because a gallery photo is
+// rendered up to half the viewport wide, not inside a 128px avatar — but still small enough that
+// the framer's JPEG lands far under the route's 4 MB cap whatever the admin picked.
+const OUTPUT_SIZE = 1200;
 
-/**
- * Downscale and re-encode a photo to a JPEG that fits under the route's size cap, so the admin can
- * pick a photo straight off a phone or camera rather than having to shrink it by hand first.
- *
- * Only touches files that actually need it — one already small and in an accepted format is sent
- * untouched, so a deliberately-chosen PNG or GIF is not silently flattened. Anything the browser
- * cannot decode (a HEIC straight off an iPhone, in every browser but Safari) can't be drawn to a
- * canvas at all; that falls through to the original file, and the server answers with its own
- * "Unsupported file type" message rather than this swallowing the problem.
- */
-async function prepareForUpload(file: File): Promise<File> {
-  const accepted = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-  if (accepted.has(file.type) && file.size <= MAX_UPLOAD_BYTES) return file;
-
-  const url = URL.createObjectURL(file);
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      // `window.Image`, not `new Image()`: this module imports `next/image` as `Image`, so the bare
-      // constructor would resolve to that component instead of the DOM image element.
-      const img = new window.Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('decode failed'));
-      img.src = url;
-    });
-
-    const scale = Math.min(1, MAX_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(image.naturalWidth * scale);
-    canvas.height = Math.round(image.naturalHeight * scale);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return file;
-    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, 'image/jpeg', 0.85),
-    );
-    // If the re-encode somehow lands larger than the original (already-optimised small JPEG), keep
-    // whichever is smaller; never send back something bigger than what we started with.
-    if (!blob || blob.size >= file.size) return file;
-    return new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-  } catch {
-    // Undecodable (e.g. HEIC): hand back the original and let the server validate it.
-    return file;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-async function uploadEventPhoto(file: File): Promise<string> {
-  const prepared = await prepareForUpload(file);
+async function uploadEventPhoto(blob: Blob): Promise<string> {
   const formData = new FormData();
-  formData.append('file', prepared);
+  formData.append('file', blob, 'photo.jpg');
   const { url } = await apiRequest<{ url: string }>('/api/admin/events/photo', {
     method: 'POST',
     body: formData,
@@ -101,9 +49,11 @@ export function PhotoUploadList({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
-  const [uploading, setUploading] = useState(false);
+  // The photos picked in one go, framed one after another. Whichever have already been framed are
+  // uploaded and in `urls` — abandoning the rest keeps them.
+  const [batch, setBatch] = useState<{ files: File[]; index: number } | null>(null);
 
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = ''; // allow re-selecting the same file later
     if (files.length === 0) return;
@@ -115,41 +65,63 @@ export function PhotoUploadList({
     }
     const selected = files.slice(0, room);
     if (selected.length < files.length) {
-      toast.error(`Only the first ${room} photo${room === 1 ? '' : 's'} were added.`);
+      toast.error(`Only the first ${room} photo${room === 1 ? '' : 's'} can be added.`);
     }
+    setBatch({ files: selected, index: 0 });
+  }
 
-    setUploading(true);
+  async function uploadFramed(blob: Blob) {
+    // Sequential by construction: the admin frames one photo at a time, so there is never more
+    // than one upload in flight. Each URL is appended as it lands, so abandoning the batch
+    // part-way through keeps whatever already uploaded.
     try {
-      // Sequential, not Promise.all: these are multi-megabyte uploads from one admin's browser,
-      // and firing ten at once mostly succeeds in making all ten slower. Each URL is appended as
-      // it lands, so a failure part-way through keeps whatever already uploaded.
-      const uploaded: string[] = [];
-      for (const file of selected) {
-        uploaded.push(await uploadEventPhoto(file));
-      }
-      onChange([...urls, ...uploaded]);
+      const url = await uploadEventPhoto(blob);
+      onChange([...urls, url]);
+      setBatch((current) => {
+        if (!current) return null;
+        const next = current.index + 1;
+        return next >= current.files.length ? null : { ...current, index: next };
+      });
     } catch (error) {
-      // Surface the server's own reason ("Unsupported file type", "Photo is too large") rather
-      // than a generic line, so the admin knows whether to convert the file or pick another.
+      // Surface the server's own reason rather than a generic line, and stay on this photo so the
+      // admin can retry it without re-picking the whole batch.
       toast.error(error instanceof Error ? error.message : 'Could not upload the photo.');
-    } finally {
-      setUploading(false);
     }
+  }
+
+  const framing = batch?.files[batch.index];
+  if (framing) {
+    return (
+      <PhotoFramer
+        key={batch.index}
+        file={framing}
+        outputSize={OUTPUT_SIZE}
+        caption={
+          batch.files.length > 1
+            ? `Photo ${batch.index + 1} of ${batch.files.length}. Cancel skips the rest.`
+            : undefined
+        }
+        onConfirm={uploadFramed}
+        onCancel={() => setBatch(null)}
+      />
+    );
   }
 
   return (
     <div className="flex flex-col gap-2">
       <Label htmlFor={inputId}>Photos</Label>
       <p className="-mt-0.5 text-xs leading-relaxed text-muted-foreground">
-        Optional. JPEG, PNG, WebP or GIF, 4 MB each, up to {MAX_PHOTOS} per event. They appear as a
-        gallery under the event on the public tab.
+        Optional. JPEG, PNG, WebP or GIF, up to {MAX_PHOTOS} per event. Each one is framed as a
+        square before it uploads. They appear as a gallery under the event on the public tab.
       </p>
 
       {urls.length > 0 && (
         <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
           {urls.map((url, index) => (
             <li key={url} className="relative">
-              <div className="relative aspect-4/3 overflow-hidden rounded-md bg-muted ring-1 ring-border">
+              {/* Square, like the framing step and the public gallery tile — what the admin
+                  framed is what this thumbnail and the public tab both show. */}
+              <div className="relative aspect-square overflow-hidden rounded-md bg-muted ring-1 ring-border">
                 <Image
                   src={url}
                   alt={`Photo ${index + 1}`}
@@ -163,7 +135,7 @@ export function PhotoUploadList({
                 variant="outline"
                 size="icon"
                 aria-label={`Remove photo ${index + 1}`}
-                disabled={disabled || uploading}
+                disabled={disabled}
                 className="absolute -right-2 -top-2 size-7 rounded-full bg-background"
                 onClick={() => onChange(urls.filter((candidate) => candidate !== url))}
               >
@@ -179,17 +151,10 @@ export function PhotoUploadList({
           type="button"
           variant="outline"
           size="sm"
-          disabled={disabled || uploading || urls.length >= MAX_PHOTOS}
+          disabled={disabled || urls.length >= MAX_PHOTOS}
           onClick={() => inputRef.current?.click()}
         >
-          {uploading ? (
-            <Loader2
-              className="size-4 animate-spin motion-reduce:animate-none"
-              aria-hidden="true"
-            />
-          ) : (
-            <Upload className="size-4" aria-hidden="true" />
-          )}
+          <Upload className="size-4" aria-hidden="true" />
           {urls.length > 0 ? 'Add more photos' : 'Upload photos'}
         </Button>
       </div>
@@ -199,7 +164,7 @@ export function PhotoUploadList({
         id={inputId}
         type="file"
         multiple
-        accept={ACCEPTED_IMAGE_TYPES}
+        accept={FRAMER_ACCEPTED_TYPES}
         className="sr-only"
         onChange={handleFileChange}
       />
