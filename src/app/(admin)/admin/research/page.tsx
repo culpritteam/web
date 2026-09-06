@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getProfileCached, ProfileFieldsForm } from '@/modules/profile';
 import { getResearchService, ResearchTable } from '@/modules/research';
+import { getTeamMemberService } from '@/modules/research-groups';
 import { CvEntriesAdmin, getCvEntryService, RESEARCH_SECTIONS } from '@/modules/teaching';
 import { AdminScreen } from '../_components/admin-screen';
 
@@ -27,10 +28,11 @@ const PROFILE_SECTIONS = [
 ] as const;
 
 export default async function AdminResearchPage() {
-  const [profileResult, entriesResult, worksResult] = await Promise.all([
+  const [profileResult, entriesResult, worksResult, membersResult] = await Promise.all([
     getProfileCached(),
     getCvEntryService().listBySections(RESEARCH_SECTIONS),
     getResearchService().list(),
+    getTeamMemberService().list(),
   ]);
 
   return (
@@ -47,7 +49,14 @@ export default async function AdminResearchPage() {
         sections={RESEARCH_SECTIONS}
         entries={entriesResult.ok ? entriesResult.data : []}
       />
-      <ResearchTable items={worksResult.ok ? worksResult.data : []} />
+      <ResearchTable
+        items={worksResult.ok ? worksResult.data : []}
+        members={
+          membersResult.ok
+            ? membersResult.data.map(({ id, name, role }) => ({ id, name, role }))
+            : []
+        }
+      />
     </AdminScreen>
   );
 }

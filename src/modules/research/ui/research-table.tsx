@@ -17,10 +17,18 @@ import {
   TableRow,
 } from '@/modules/shared/ui/table';
 // Deep import, not the barrel — see research-form-dialog.tsx's comment.
+import type { BylinePerson } from '@/modules/shared/ui/byline-field';
 import type { Research } from '../research.types';
 import { ResearchFormDialog } from './research-form-dialog';
 
-export function ResearchTable({ items }: { items: Research[] }) {
+export function ResearchTable({
+  items,
+  members = [],
+}: {
+  items: Research[];
+  /** Everyone creditable, for the contributor picker. Defaults to none so the table renders alone. */
+  members?: BylinePerson[];
+}) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Research | undefined>(undefined);
 
@@ -95,7 +103,12 @@ export function ResearchTable({ items }: { items: Research[] }) {
         )}
       </FormSection>
 
-      <ResearchFormDialog open={formOpen} onOpenChange={setFormOpen} research={editing} />
+      <ResearchFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        research={editing}
+        members={members}
+      />
 
       <ConfirmDialog
         {...remove.dialogProps}

@@ -52,9 +52,13 @@ export function PublicationsList({ items }: { items: Publication[] }) {
                 <h4 className="text-balance font-serif text-lg leading-snug text-foreground sm:text-xl">
                   {item.title}
                 </h4>
-                <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">
-                  {item.authors}
-                </p>
+                {/* Nothing at all when there are no authors — an unattributed entry is the
+                    professor's own work, and an empty byline line would read as missing data. */}
+                {item.authors.length > 0 && (
+                  <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">
+                    {item.authors.map((author) => author.name).join(', ')}
+                  </p>
+                )}
                 <p className="mt-1 font-serif text-sm italic text-muted-foreground">{item.venue}</p>
 
                 {item.link && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ import { apiSend } from '@/modules/shared/lib/api-client';
 import { Dialog, DialogFooter } from '@/modules/shared/ui/dialog';
 import { Button } from '@/modules/shared/ui/button';
 import { Input } from '@/modules/shared/ui/input';
-import { Textarea } from '@/modules/shared/ui/textarea';
+import { BylineField, type BylinePerson } from '@/modules/shared/ui/byline-field';
 import { FormField } from '@/modules/shared/ui/form-field';
 // Deep, module-internal imports — see the equivalent comment in research-form-dialog.tsx (the
 // barrel also re-exports the Prisma-backed `getPublicationService`; even a type-only barrel
@@ -30,16 +30,20 @@ export function PublicationFormDialog({
   open,
   onOpenChange,
   publication,
+  members,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   publication?: Publication;
+  /** Everyone who can be credited. Passed down from the server page — this dialog reads nothing. */
+  members: BylinePerson[];
 }) {
   const router = useRouter();
   const isEdit = Boolean(publication);
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
@@ -47,7 +51,9 @@ export function PublicationFormDialog({
     resolver: zodResolver(createPublicationSchema),
     values: {
       title: publication?.title ?? '',
-      authors: publication?.authors ?? '',
+      // Only the two fields that get sent back — id and sortOrder are the repository's business,
+      // and sortOrder is re-derived from this array's own order on save.
+      authors: publication?.authors.map(({ teamMemberId, name }) => ({ teamMemberId, name })) ?? [],
       venue: publication?.venue ?? '',
       year: publication?.year ?? new Date().getFullYear(),
       link: publication?.link ?? '',
@@ -83,9 +89,22 @@ export function PublicationFormDialog({
         <FormField label="Title" htmlFor="pub-title" required error={errors.title?.message}>
           {(fieldProps) => <Input {...fieldProps} {...register('title')} />}
         </FormField>
-        <FormField label="Authors" htmlFor="pub-authors" required error={errors.authors?.message}>
-          {(fieldProps) => <Textarea {...fieldProps} {...register('authors')} rows={2} />}
-        </FormField>
+        <Controller
+          control={control}
+          name="authors"
+          render={({ field }) => (
+            <BylineField
+              label="Authors"
+              description="In citation order. Leave empty for your own solo work — no byline is shown."
+              error={errors.authors?.message ?? errors.authors?.root?.message}
+              value={field.value ?? []}
+              onChange={field.onChange}
+              members={members}
+              externalLabel="Add an outside co-author"
+              emptyHint="No authors listed — this will show as your own work."
+            />
+          )}
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Venue" htmlFor="pub-venue" required error={errors.venue?.message}>
             {(fieldProps) => <Input {...fieldProps} {...register('venue')} />}

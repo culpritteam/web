@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import { Dialog, DialogFooter } from '@/modules/shared/ui/dialog';
 import { Button } from '@/modules/shared/ui/button';
 import { Input } from '@/modules/shared/ui/input';
 import { Textarea } from '@/modules/shared/ui/textarea';
+import { BylineField, type BylinePerson } from '@/modules/shared/ui/byline-field';
 import { FormField } from '@/modules/shared/ui/form-field';
 // Deep, module-internal imports (not the barrel): `@/modules/research`'s index also re-exports
 // `getResearchService`, whose composition root imports the Prisma repository (`pg`/`fs`, Node-only).
@@ -36,17 +37,21 @@ export function ResearchFormDialog({
   open,
   onOpenChange,
   research,
+  members,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Present for edit; absent for create. */
   research?: Research;
+  /** Everyone who can be credited. Passed down from the server page — this dialog reads nothing. */
+  members: BylinePerson[];
 }) {
   const router = useRouter();
   const isEdit = Boolean(research);
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
@@ -57,6 +62,9 @@ export function ResearchFormDialog({
     resolver: zodResolver(createResearchSchema),
     values: {
       title: research?.title ?? '',
+      // Only the two fields that get sent back — sortOrder is re-derived from this array's order.
+      contributors:
+        research?.contributors.map(({ teamMemberId, name }) => ({ teamMemberId, name })) ?? [],
       summary: research?.summary ?? '',
       area: research?.area ?? '',
       link: research?.link ?? '',
@@ -128,6 +136,22 @@ export function ResearchFormDialog({
             <Input {...fieldProps} type="url" {...register('link')} placeholder="https://…" />
           )}
         </FormField>
+        <Controller
+          control={control}
+          name="contributors"
+          render={({ field }) => (
+            <BylineField
+              label="Contributors"
+              description="Who worked on this. Leave empty for your own work — no names are shown."
+              error={errors.contributors?.message ?? errors.contributors?.root?.message}
+              value={field.value ?? []}
+              onChange={field.onChange}
+              members={members}
+              externalLabel="Add an outside collaborator"
+              emptyHint="No contributors listed — this will show as your own work."
+            />
+          )}
+        />
         <FormField
           label="Sort order"
           htmlFor="research-sortOrder"
