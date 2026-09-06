@@ -128,6 +128,17 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      // The site icon changed on 2026-09-06 (the .ico was a solid teal square unrelated to the
+      // kite). `icon.svg` re-busts itself — Next appends a content hash to the <link href> — but
+      // /favicon.ico is requested by URL alone, so a browser that cached the old square would keep
+      // showing it essentially forever. Forcing revalidation means every existing visitor picks the
+      // kite up on their next load, at the cost of one conditional request that answers 304.
+      //
+      // Worth relaxing to a long max-age once the old icon has aged out of circulation.
+      {
+        source: '/favicon.ico',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }],
+      },
       {
         source: '/:path*',
         headers: [

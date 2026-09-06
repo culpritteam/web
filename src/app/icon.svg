@@ -5,14 +5,18 @@
        without a file there the request falls through to the app (see commit 1383258).
        viewBox is cropped to the artwork's bounds so the kite fills a 16px tab icon.
 
-       Colours are the site palette, not free choices: the sail runs --accent (hsl 190 90% 30%)
-       up to a lighter tint of the same hue, and the flying line is --masthead-foreground. The
+       Colours are the site palette, not free choices: the sail runs the accent token
+       (hsl 190 90% 30%) up to a lighter tint of the same hue, and the flying line is the
+       masthead-foreground token. Written as names, not CSS var() syntax, because a double
+       hyphen is illegal inside an XML comment and makes this file unparseable by anything
+       stricter than a browser. The
        mark previously used an unrelated green/blue that appeared nowhere else in the product, so
        the browser tab did not read as the same site as the page behind it. The geometry is
        unchanged.
 
        These are resolved hex values because an SVG served as a favicon is rendered outside the
-       document and cannot see the CSS custom properties. Re-derive them if the palette moves. -->
+       document and cannot see the CSS custom properties. Re-derive them if the palette moves,
+       then run `node scripts/generate-favicon.mjs` to rebuild favicon.ico from this file. -->
   <defs>
     <linearGradient id="sail" x1="0.15" y1="0" x2="0.85" y2="1">
       <stop offset="0" stop-color="#1DACC9"/>
