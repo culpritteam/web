@@ -13,9 +13,10 @@ related_decisions: [ADR-008, ADR-013, ADR-014]
 
 **Superseded by [ADR-014](ADR-014-hosting-and-service-split.md) on 2026-09-06.**
 
-The decision below no longer describes the running system. Vercel is production, built from the
-`culpritteam/web` mirror; the VPS is staging. The context section remains accurate as a record of
-what was true on 2026-08-12, which is why this file is kept rather than deleted.
+The decision below no longer describes the plan. The VPS serves staging, and Vercel is the intended
+production target, built from the `culpritteam/web` mirror — though **production is not deployed
+yet**, so the VPS remains the only running environment. The context section stays accurate as a
+record of what was true on 2026-08-12, which is why this file is kept rather than deleted.
 
 Original status: Accepted
 

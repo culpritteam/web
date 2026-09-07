@@ -16,11 +16,12 @@ one is a superset of the other.
 | Remote | Repository | Serves | Runs |
 |---|---|---|---|
 | `origin` | `Wyco68/CulpritWeb` | Staging on the VPS — `culprit.wyco-dev.com` | All of `.github/workflows/` |
-| `deploy` | `culpritteam/web` | Production on Vercel — `web-sepia-psi-97.vercel.app` | Nothing. Vercel only. |
+| `deploy` | `culpritteam/web` | Nothing yet — reserved for a future production deployment | Nothing. |
 
-`culpritteam/web` is a mirror that exists so Vercel has something to build from. Vercel deploys
-through its own GitHub integration, so it needs no workflow file and has none of the secrets the
-VPS pipeline uses. Every job in `.github/workflows/` is therefore gated:
+`culpritteam/web` is a mirror kept in sync so a production deployment can be created from it later.
+**Nothing is served from it today** — production is planned, not running; see
+[ADR-014](../decisions/ADR-014-hosting-and-service-split.md). It has none of the secrets the VPS
+pipeline uses and needs no workflow file, so every job in `.github/workflows/` is gated:
 
 ```yaml
 if: github.repository == 'Wyco68/CulpritWeb'
@@ -37,7 +38,10 @@ obvious which one a mistake landed in.
 ## Platform
 
 Staging is self-hosted: one prebuilt Docker container on a low-resource VPS, built and pushed by
-CI, never built on the VPS itself. Production is Vercel, built by Vercel from the mirror. `NEXT_PUBLIC_APP_URL`/`BETTER_AUTH_URL` are set to the deployed domain.
+CI, never built on the VPS itself. It is the only environment currently deployed —
+`NEXT_PUBLIC_APP_URL`/`BETTER_AUTH_URL` are set to its domain. Production is intended to be Vercel,
+built from the mirror, but is not deployed; see
+[ADR-014](../decisions/ADR-014-hosting-and-service-split.md).
 See [architecture/overview.md](../architecture/overview.md) for the full adopted stack and
 [docker-vps.md](docker-vps.md) for the pipeline itself; everything below (build command,
 migrations, connection pooling) is the platform-agnostic part that pipeline relies on.
