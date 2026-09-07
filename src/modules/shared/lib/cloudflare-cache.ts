@@ -19,7 +19,21 @@ export async function purgeCloudflareCache(paths: string[]): Promise<void> {
   const token = process.env.CLOUDFLARE_API_TOKEN;
   const zoneId = process.env.CLOUDFLARE_ZONE_ID;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (!token || !zoneId || !appUrl || paths.length === 0) return;
+  if (paths.length === 0) return;
+  const missing = [
+    !token && 'CLOUDFLARE_API_TOKEN',
+    !zoneId && 'CLOUDFLARE_ZONE_ID',
+    !appUrl && 'NEXT_PUBLIC_APP_URL',
+  ].filter((name): name is string => Boolean(name));
+  if (missing.length > 0) {
+    // Half-configured is the dangerous state, and it used to be silent: with a token but no zone
+    // id (the live staging config on 2026-09-07), every admin edit purged nothing and visitors
+    // kept the edge-cached page for the full s-maxage hour while the origin was already correct.
+    // Nothing is logged when the integration is switched off entirely — that's a deliberate
+    // deployment choice, not a misconfiguration.
+    if (missing.length < 3) logger.warn('cloudflare_purge_skipped', { missing, paths });
+    return;
+  }
 
   const files = paths.map((path) => new URL(path, appUrl).toString());
   try {

@@ -5,6 +5,12 @@ import { EmptyState } from '@/modules/shared/ui/empty-state';
 import { PageHeading } from '@/modules/shared/ui/page-heading';
 import { toMetaDescription } from '../_lib/page-meta';
 
+// Tighter than the public layout's 3600s safety net, matching `/api/events`: the upcoming/past
+// boundary is computed against the clock at prerender time, so a cached page can only be trusted
+// for as long as it is plausible that no event has crossed it. Admin edits still reach the page
+// immediately via `revalidatePath('/events')` — this only bounds clock drift.
+export const revalidate = 300;
+
 const FALLBACK_DESCRIPTION = 'Upcoming and past talks, workshops and visits.';
 
 export async function generateMetadata(): Promise<Metadata> {

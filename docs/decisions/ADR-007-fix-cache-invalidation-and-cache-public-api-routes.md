@@ -1,7 +1,7 @@
 ---
 status: current
 source_of_truth: true
-last_updated: 2026-08-11
+last_updated: 2026-09-07
 related_modules: [shared]
 related_decisions: [ADR-006]
 ---
@@ -237,6 +237,36 @@ Considered and rejected: a Cloudflare Worker for purge/caching (a Cache Rule + t
 solve this without one, per this project's own "prefer Cloudflare config over Workers" bias);
 purging cache tags instead of URLs (this app's traffic/write volume doesn't need tag-level
 granularity — the existing per-area `revalidatePath` URL list already gives exact targeting).
+
+## Correction (2026-09-07): the edge purge was never actually active
+
+An admin edit on the Events tab was reported as invisible to visitors. The origin was correct —
+`/events` answers `x-nextjs-cache: HIT` with the new content immediately after the write — but
+Cloudflare kept serving the old page (`cf-cache-status: HIT`, `Age: 684`) for the full
+`s-maxage=3600`.
+
+Cause: the staging Doppler config (`culprit/stg`, the single config CI, the VPS and local all
+read per ADR-013) has `CLOUDFLARE_API_TOKEN` set but **no `CLOUDFLARE_ZONE_ID`**, so
+`purgeCloudflareCache` hit its `if (!token || !zoneId || !appUrl) return` guard on every admin
+mutation and purged nothing. The guard was written as a silent opt-out — correct when the
+integration is deliberately off, wrong when half of it is configured and the other half is a
+typo or an omission. It now logs `cloudflare_purge_skipped` with the missing variable names when
+some (but not all) of the three are set, and stays silent when none are.
+
+Two things this surfaced while confirming the cause:
+
+- `/api/events` answers `cf-cache-status: DYNAMIC` — the Cache Rule this ADR's 2026-08-12
+  addendum describes still lists `/api/events/upcoming`, the route ADR-011 replaced on
+  2026-09-01. Not a staleness bug (an uncached route is always fresh), just a lost cache win;
+  the rule lives in the Cloudflare dashboard, not this repo.
+- The public events page carried a comment claiming a "300s revalidate ceiling" it did not have —
+  it inherited the layout's 3600s. `export const revalidate = 300` was added to
+  `src/app/(public)/events/page.tsx` so the ceiling matches both the comment and `/api/events`,
+  since the upcoming/past boundary is decided against the clock at prerender time.
+
+Fixing the deployment needs `CLOUDFLARE_ZONE_ID` added to `culprit/stg` and a redeploy
+(`scripts/deploy.sh` regenerates `.env.production` from Doppler) — no code change makes an
+unset variable purge.
 
 ## Consequences
 
