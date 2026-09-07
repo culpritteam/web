@@ -3,8 +3,9 @@ name: Docker build & publish
 # Builds the production image in CI and pushes it to GHCR. The VPS only ever pulls what this
 # workflow publishes — it never builds. See docs/deployment/docker-vps.md.
 #
-# Application config comes from Doppler (project `culprit`, config `stg`), fetched per job with a
-# read-only service token — see ADR-013. GitHub holds only what CI needs to reach the box:
+# Application config comes from Doppler (project `culprit`, config `stg`) — the one shared config
+# the local dev server also uses — fetched per job with a read-only service token. See ADR-013.
+# GitHub holds only what CI needs to reach the box:
 #
 # Required repo configuration (Settings > Secrets and variables > Actions):
 #   Secrets:   DOPPLER_TOKEN (read-only Doppler service token for culprit/stg — the only
@@ -33,10 +34,10 @@ name: Docker build & publish
 # docs/deployment/docker-vps.md for the ~/server/apps/<app>/ layout this job assumes already
 # exists (bootstrapped once by hand: directory, .env.production, Caddy site block).#
 # Repository guard: every job below is gated on `github.repository`. The code is mirrored to a
-# second remote, culpritteam/web, which exists only to give Vercel something to deploy from.
-# Vercel builds through its own GitHub integration and needs no workflow, so nothing in .github/
-# should run there — without the guard, the mirror would try to publish images, SSH to the VPS and
-# apply migrations with secrets it does not have, and fail on every push.
+# second remote, culpritteam/web, which is reserved for a future production deployment. No
+# production environment is set up yet, and nothing in .github/ should run there — without the
+# guard, the mirror would try to publish images, SSH to the VPS and apply migrations with secrets
+# it does not have, and fail on every push.
 # See docs/deployment/deployment.md#two-remotes.
 
 on:

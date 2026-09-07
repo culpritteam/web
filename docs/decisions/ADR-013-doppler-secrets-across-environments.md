@@ -3,10 +3,10 @@ status: current
 source_of_truth: true
 last_updated: 2026-09-06
 related_modules: [shared, integrations]
-related_decisions: []
+related_decisions: [ADR-009, ADR-014]
 ---
 
-# ADR-013: Doppler is the source of truth for local and staging config; Vercel is uploaded directly
+# ADR-013: Doppler is the source of truth for local and staging config
 
 ## Status
 
@@ -133,6 +133,11 @@ environment. Step outputs can.
 ## Supersedes / Superseded by
 
 Nothing. Scoped to the two-remote split described in
-[deployment.md](../deployment/deployment.md#two-remotes) — VPS staging, Vercel production.
-(Note that [ADR-009](ADR-009-vercel-dropped.md) still reads as though Vercel were dropped
-entirely; it predates the mirror that now serves production.)
+[deployment.md](../deployment/deployment.md#two-remotes) — the VPS serves staging, and the
+`culpritteam/web` mirror is reserved for a production deployment that does not exist yet.
+
+The hosting question this ADR raised in passing is settled by
+[ADR-014](ADR-014-hosting-and-service-split.md), which supersedes
+[ADR-009](ADR-009-vercel-dropped.md). An earlier revision of this section said the mirror "now
+serves production"; that was wrong — production is planned, not running, which is exactly why no
+`prd` Doppler config is maintained.
