@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { purgeCloudflareCache } from './cloudflare-cache';
+import { logger } from './logger';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -30,6 +31,32 @@ describe('purgeCloudflareCache', () => {
     await purgeCloudflareCache(['/research']);
 
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('warns when the integration is half-configured (token set, zone id missing)', async () => {
+    delete process.env.CLOUDFLARE_ZONE_ID;
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+
+    await purgeCloudflareCache(['/events']);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith('cloudflare_purge_skipped', {
+      missing: ['CLOUDFLARE_ZONE_ID'],
+      paths: ['/events'],
+    });
+    warn.mockRestore();
+  });
+
+  it('stays silent when the integration is switched off entirely', async () => {
+    delete process.env.CLOUDFLARE_API_TOKEN;
+    delete process.env.CLOUDFLARE_ZONE_ID;
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+
+    await purgeCloudflareCache(['/events']);
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('is a no-op for an empty path list', async () => {
