@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BylineField, bylineSuggestions, type BylineEntry } from '../byline-field';
+import { bylineSuggestions } from '@/modules/research-groups/byline-match';
+import { BylineField, type BylineEntry } from '../byline-field';
 
 function Harness({ initial = [] as BylineEntry[], onChange = vi.fn() }) {
   const [value, setValue] = useState<BylineEntry[]>(initial);
