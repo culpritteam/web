@@ -168,10 +168,3 @@ export function BylineField({
     </fieldset>
   );
 }
-
-/** The datalist suggestions for a set of members: each name and name-on-papers, once. */
-export function bylineSuggestions(
-  members: readonly { name: string; citationName: string | null }[],
-): string[] {
-  return [...new Set(members.flatMap((m) => (m.citationName ? [m.name, m.citationName] : [m.name])))];
-}

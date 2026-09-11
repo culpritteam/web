@@ -21,3 +21,14 @@ export function matchMember<M extends BylineMember>(name: string, members: reado
     ) ?? null
   );
 }
+
+/**
+ * The admin byline field's datalist suggestions: each member's name and name-on-papers, once.
+ * Lives here rather than beside `BylineField` because Server Components call it, and a function
+ * exported from a `'use client'` module is only a client reference on the server.
+ */
+export function bylineSuggestions(
+  members: readonly Pick<BylineMember, 'name' | 'citationName'>[],
+): string[] {
+  return [...new Set(members.flatMap((m) => (m.citationName ? [m.name, m.citationName] : [m.name])))];
+}

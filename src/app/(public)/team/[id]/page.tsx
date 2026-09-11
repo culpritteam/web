@@ -1,6 +1,8 @@
 import { cache } from 'react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import { ProfileLinks } from '@/modules/profile';
 import { getTeamMemberService, memberInitials } from '@/modules/research-groups';
 import {
@@ -55,6 +57,14 @@ export default async function TeamMemberPage({ params }: Props) {
 
   return (
     <div>
+      <Link
+        href="/team"
+        className="mb-8 inline-flex items-center gap-2 rounded-sm text-sm tracking-tight text-muted-foreground transition-colors duration-300 ease-[var(--ease-out-expo)] hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" />
+        Back to Team
+      </Link>
+
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">
         <Avatar
           src={member.photoUrl}
