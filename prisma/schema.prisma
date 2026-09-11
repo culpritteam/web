@@ -1,6 +1,7 @@
 // Prisma schema for "The Culprit". See PROJECT_SPEC.md §7 (internal) for the authoritative model.
 // CV-style list content lives in `cv_entry` rows, not in Json columns on `profile` — see
-// docs/decisions/ADR-012-cv-entries-and-courses.md.
+// docs/decisions/ADR-012-cv-entries-and-courses.md. Since ADR-016 those rows, and courses, belong
+// to a `team_member`; `profile` is the lab's own singleton.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,9 +13,13 @@ datasource db {
   provider = "postgresql"
 }
 
-// Singleton. Holds the professor's identity, the site-wide prose, and the per-tab standfirst copy.
+// Singleton. The LAB's profile — "The Culprit of Privacy Technologies": its name, tagline, logo,
+// overview, department, the Research intro, and the per-tab standfirst copy. Until 2026-09-11 this
+// row held the professor's personal identity; that moved onto her `TeamMember` row (the director)
+// when the site was re-scoped from a personal site to a lab site (ADR-016). The model keeps the
+// name `Profile` so the module and its routes did not have to be renamed with it.
 //
-// The five `*Intro` columns exist because About and Research were the only public tabs with
+// The `*Intro` columns exist because About and Research were the only public tabs with
 // admin-editable prose (`bio`, `researchStatement`); Publications, Teaching, Team, Events and
 // Make Appointment rendered a heading and then jumped straight into data, with their SEO
 // `description` strings hardcoded in the page files. These columns close that gap. They are
@@ -26,26 +31,22 @@ datasource db {
 // rather than in a new SiteSetting table that would exist to hold six rows.
 model Profile {
   id                  String   @id @default(cuid())
-  fullName            String   @map("full_name")
-  /// How she is credited on a paper — "J. Jaimunk", not "Jenjira Jaimunk, PhD.". A byline uses a
-  /// citation form that no rule reliably derives from a display name, so it is stored rather than
-  /// computed. Every `PublicationAuthor`/`ResearchContributor` row flagged `isProfileOwner` renders
-  /// this, live, so changing it here re-credits every paper at once.
-  citationName        String?  @map("citation_name")
-  title               String
-  photoUrl            String?  @map("photo_url")
-  bio                 String?  @db.Text
+  /// The lab's name, rendered as the site header's h1 on every public page.
+  labName             String   @map("lab_name")
+  labTagline          String?  @map("lab_tagline")
+  logoUrl             String?  @map("logo_url")
+  /// The About page body.
+  labOverview         String?  @map("lab_overview") @db.Text
+  /// The lab's department / host institution.
   positionAffiliation String?  @map("position_affiliation") @db.Text
+  /// The Research tab's intro prose.
   researchStatement   String?  @map("research_statement") @db.Text
-  linkedinUrl         String?  @map("linkedin_url")
-  googleScholarUrl    String?  @map("google_scholar_url")
   /// The scheduling link the public Make Appointment tab embeds. Previously readable only from
   /// NEXT_PUBLIC_CALENDLY_URL, which the admin cannot change without a redeploy. Embed-only —
   /// nothing server-side ever calls Calendly (ADR-011).
   calendlyUrl         String?  @map("calendly_url")
   /// Standfirst prose for the public tabs that had none. See the comment block above.
   publicationsIntro   String?  @map("publications_intro") @db.Text
-  teachingIntro       String?  @map("teaching_intro") @db.Text
   teamIntro           String?  @map("team_intro") @db.Text
   eventsIntro         String?  @map("events_intro") @db.Text
   appointmentIntro    String?  @map("appointment_intro") @db.Text
@@ -61,8 +62,7 @@ model Research {
   area         String
   /// Optional external link — a project page, tool listing, or artefact repository.
   link         String?
-  /// Who worked on this, in display order. Empty is the common case and means the professor's own
-  /// solo work — see `ResearchContributor`.
+  /// Who worked on this, in display order. Empty renders no byline — see `ResearchContributor`.
   contributors ResearchContributor[]
   sortOrder    Int                   @default(0) @map("sort_order")
   createdAt    DateTime              @default(now()) @map("created_at")
@@ -75,7 +75,7 @@ model Publication {
   id        String              @id @default(cuid())
   title     String
   /// Credited authors in citation order. This replaced a free-text `authors` column on 2026-09-06
-  /// (ADR-015); empty means the professor's own solo work — see `PublicationAuthor`.
+  /// (ADR-015); empty renders no byline — see `PublicationAuthor`.
   authors   PublicationAuthor[]
   venue     String
   year      Int
@@ -87,51 +87,51 @@ model Publication {
   @@map("publication")
 }
 
-model ResearchGroup {
-  id          String       @id @default(cuid())
-  name        String
-  description String       @db.Text
-  teamMembers TeamMember[]
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
-
-  @@map("research_group")
-}
-
+/// A member of the lab. Every member is listed on the public Team tab and has a profile page at
+/// `/team/[id]`, which renders this row plus its `CvEntry` and `Course` rows.
+///
+/// The director — the professor who runs the lab — is a member like everyone else, flagged
+/// `isDirector`. Her bio, CV, links and photo lived on `Profile` until 2026-09-11 (ADR-016).
+///
+/// At most one row has `isDirector = true`. Postgres can express that only as a partial unique
+/// index (`team_member_one_director ... WHERE is_director`), and Prisma cannot express a partial
+/// index at all, so it lives in migration 20260911120000_lab_team_profiles and is documented here —
+/// `prisma migrate dev` will report it as drift. The repository also clears the flag on every other
+/// row in the same transaction that sets it, so the admin never hits the constraint.
 model TeamMember {
-  id                     String                @id @default(cuid())
-  name                   String
-  /// What this person actually goes by — "Wyco" for Win Moe Aung. Its own column rather than a
-  /// "Short name: X." sentence at the front of the bio, which is where it used to live: that made
-  /// it unsearchable, unformattable, and impossible to render anywhere the full bio didn't fit.
-  nickname               String?
-  role                   String // e.g. "PhD Candidate", "Visiting Professor"
-  bio                    String?               @db.Text
-  photoUrl               String?               @map("photo_url")
-  /// Whether this person belongs on the public Team tab. False for a research co-author who exists
-  /// only so a byline can link to one record per person: a real collaborator, but not a member of
-  /// this site's team, and listing them beside the people who built the site misrepresents both.
-  showOnTeamTab          Boolean               @default(true) @map("show_on_team_tab")
-  researchGroupId        String?               @map("research_group_id")
-  researchGroup          ResearchGroup?        @relation(fields: [researchGroupId], references: [id], onDelete: SetNull)
-  sortOrder              Int                   @default(0) @map("sort_order")
+  id                  String             @id @default(cuid())
+  name                String
+  /// How this person is credited on a paper — "J. Jaimunk", not "Jenjira Jaimunk, PhD.". Bylines
+  /// are plain text (ADR-016); a byline name that matches `name` or this value, case-insensitively,
+  /// is highlighted and links to this member's profile. No rule reliably derives one form from the
+  /// other, so it is stored.
+  citationName        String?            @map("citation_name")
+  role                String // e.g. "PhD Candidate", "Visiting Professor"
+  affiliation         String?
+  bio                 String?            @db.Text
+  photoUrl            String?            @map("photo_url")
+  linkedinUrl         String?            @map("linkedin_url")
+  googleScholarUrl    String?            @map("google_scholar_url")
+  /// The lab director. Sorts first on the Team tab whatever `sortOrder` says. See the model comment
+  /// for the one-director invariant.
+  isDirector          Boolean            @default(false) @map("is_director")
+  sortOrder           Int                @default(0) @map("sort_order")
   /// Soft links from events this member was added to. The event rows snapshot their own copy of
   /// the name/role, so deleting this member nulls the link without erasing event history.
-  eventParticipations    EventParticipant[]
-  /// Soft links from the publications and research this member is credited on. Those rows snapshot
-  /// their own copy of the name too, so deleting this member nulls the link without erasing a
-  /// published byline.
-  publicationAuthorships PublicationAuthor[]
-  researchContributions  ResearchContributor[]
-  createdAt              DateTime              @default(now()) @map("created_at")
-  updatedAt              DateTime              @updatedAt @map("updated_at")
+  eventParticipations EventParticipant[]
+  /// This member's CV lines and taught courses. Cascade: they are part of the member's profile and
+  /// mean nothing without it.
+  cvEntries           CvEntry[]
+  courses             Course[]
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
 
-  @@index([researchGroupId])
   @@map("team_member")
 }
 
 // --- Teaching & CV -------------------------------------------------------------------------------
-// Two tables back the About and Teaching tabs.
+// Two tables back the CV and Teaching sections of a member's profile page. Both belong to one
+// `TeamMember` (ADR-016); before that they were the professor's alone and hung off nothing.
 //
 // `cv_entry` replaced seven Json columns on `profile` on 2026-09-02 (ADR-012). Those columns were
 // a 1NF violation — a repeating group in a single field — and, more practically, they could only
@@ -153,44 +153,48 @@ enum CvSection {
 }
 
 model CvEntry {
-  id       String    @id @default(cuid())
-  /// Decides which tab and which heading this entry renders under.
-  section  CvSection
-  title    String
-  subtitle String?
+  id           String     @id @default(cuid())
+  teamMemberId String     @map("team_member_id")
+  teamMember   TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+  /// Decides which heading this entry renders under on the member's profile.
+  section      CvSection
+  title        String
+  subtitle     String?
   /// Free text, not an Int: entries are routinely a range ("2019-2023") or "present".
-  year     String?
+  year         String?
 
   description String?  @db.Text
-  /// Ordering is per-section, so `sortOrder` is only meaningful within one `section`.
+  /// Ordering is per member and section, so `sortOrder` is only meaningful within one of those.
   sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  @@index([section, sortOrder])
+  @@index([teamMemberId, section, sortOrder])
   @@map("cv_entry")
 }
 
 /// A taught course. A real entity rather than a `CvEntry` section — it carries a code, a term and
 /// a level that no CV line has.
 model Course {
-  id          String   @id @default(cuid())
+  id           String     @id @default(cuid())
+  teamMemberId String     @map("team_member_id")
+  teamMember   TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
   /// Course code as the institution prints it, e.g. "CS 4235". Optional — seminars often have none.
-  code        String?
-  title       String
+  code         String?
+  title        String
   /// Grouping key on the public tab, e.g. "Undergraduate" / "Graduate". Free text, matching the
   /// `Research.area` precedent — level naming differs per institution.
-  level       String
+  level        String
   /// When it was or is taught, e.g. "Fall 2025".
-  term        String?
-  description String?  @db.Text
+  term         String?
+  description  String?    @db.Text
   /// Optional syllabus or course-page link.
-  link        String?
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  link         String?
+  sortOrder    Int        @default(0) @map("sort_order")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  @@index([sortOrder])
+  @@index([teamMemberId, sortOrder])
   @@map("course")
 }
 
@@ -228,13 +232,10 @@ model Event {
 /// Who took part in an event — the site's own team members and outside guests in one list.
 ///
 /// Every row carries its own `name`/`role`/`photoUrl`, copied from the team member at the moment
-/// it was added rather than read through the relation. An event is a historical record: editing a
-/// research group, changing someone's job title, or deleting a member must not silently rewrite
-/// what last year's event says. `teamMemberId` is kept as a soft link (nulled if that member is
-/// deleted) purely so the same person cannot be added twice.
-///
-/// "Add a whole team" is expanded here, not stored as a group reference: it inserts one row per
-/// member at that moment, so later changes to the group's membership leave past events alone.
+/// it was added rather than read through the relation. An event is a historical record: changing
+/// someone's job title or deleting a member must not silently rewrite what last year's event says.
+/// `teamMemberId` is kept as a soft link (nulled if that member is deleted) purely so the same
+/// person cannot be added twice.
 model EventParticipant {
   id      String @id @default(cuid())
   eventId String @map("event_id")
@@ -261,48 +262,26 @@ model EventParticipant {
 }
 
 // --- Attribution ---------------------------------------------------------------------------------
-// Who a publication or a research item is credited to. Modelled as rows, not columns, and this is
-// the whole point: much of this site's content is the professor's own solo work, and a nullable
-// `author_id` / `research_group_id` on every row would have meant a NULL on most of them. An empty
-// list says "his own work" without storing anything at all to say it, and the same shape scales to
-// a paper with six co-authors.
+// Who a publication or a research item is credited to, as an ordered list of plain typed names.
+// Rows rather than one text column so the order is explicit and each name is its own value; an
+// empty list renders no byline.
 //
-// Both models copy `EventParticipant`: explicit join row, cascade from the parent, a soft link to
-// the team member that is nulled rather than cascaded, and a snapshot of what renders.
+// There is no link to `team_member` (dropped 2026-09-11, ADR-016). A byline is a fixed historical
+// fact, and the public site decides at render time whether a name is a lab member: a name matching a
+// member's `name` or `citationName` (case-insensitive, trimmed) is highlighted and links to that
+// member's profile; any other name renders grey. Renaming or deleting a member never rewrites a
+// byline.
 
-/// Who a publication is credited to, in citation order — the site's own team members and outside
-/// co-authors in one list.
-///
-/// This replaced a single free-text `authors` column (2026-09-06, ADR-015). That column could
-/// render a byline and nothing else: it could not link a name to a team member, could not be
-/// filtered by person, and duplicated a name the `team_member` table already held.
-///
-/// Every row carries its own `name`, copied from the team member when it was added rather than read
-/// through the relation. A citation is a fixed historical fact — renaming a member, or deleting
-/// them, must not rewrite a published byline. `teamMemberId` is a soft link kept so the same person
-/// cannot be credited twice and so the admin can pick people instead of retyping them.
-///
-/// Only `name` is snapshotted, unlike `EventParticipant`, which also freezes role and photo: an
-/// event card renders a person, a byline renders a name. A snapshot column nothing displays could
-/// only ever drift.
+/// Who a publication is credited to, in citation order. Replaced a single free-text `authors`
+/// column on 2026-09-06 (ADR-015); the team-member link and the professor's own-row flag it gained
+/// then were removed in ADR-016.
 model PublicationAuthor {
   id            String      @id @default(cuid())
   publicationId String      @map("publication_id")
   publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
 
-  /// Null for an outside co-author, and nulled if the linked member is later deleted.
-  teamMemberId String?     @map("team_member_id")
-  teamMember   TeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: SetNull)
-
-  /// Snapshot taken when the author was added. This is what renders — except on the professor's own
-  /// row, which renders `Profile.citationName` live so one edit re-credits every paper.
+  /// The name exactly as it appears on the paper.
   name String
-
-  /// True on the professor's own row. She is not a `TeamMember` — she owns the site rather than
-  /// being one of its researchers — so without this she could only be credited by typing her name
-  /// as though she were an outside collaborator. The row renders `Profile.citationName` and always
-  /// sorts first, whatever `sortOrder` says.
-  isProfileOwner Boolean @default(false) @map("is_profile_owner")
 
   /// Author position. Unlike every other `sortOrder` in this schema this is not a display
   /// preference — first author and last author carry meaning in a citation, so the order the admin
@@ -311,9 +290,6 @@ model PublicationAuthor {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  /// One row per member per publication. Postgres treats NULLs as distinct, so this constrains
-  /// linked members without limiting how many outside co-authors a paper can have.
-  @@unique([publicationId, teamMemberId])
   @@index([publicationId])
   @@map("publication_author")
 }
@@ -325,25 +301,13 @@ model ResearchContributor {
   researchId String   @map("research_id")
   research   Research @relation(fields: [researchId], references: [id], onDelete: Cascade)
 
-  /// Null for an outside collaborator, and nulled if the linked member is later deleted.
-  teamMemberId String?     @map("team_member_id")
-  teamMember   TeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: SetNull)
-
-  /// Snapshot taken when the contributor was added. This is what renders — except on the
-  /// professor's own row; see `PublicationAuthor.isProfileOwner`.
+  /// The name exactly as the admin typed it.
   name String
-
-  /// True on the professor's own row. She is not a `TeamMember` — she owns the site rather than
-  /// being one of its researchers — so without this she could only be credited by typing her name
-  /// as though she were an outside collaborator. The row renders `Profile.citationName` and always
-  /// sorts first, whatever `sortOrder` says.
-  isProfileOwner Boolean @default(false) @map("is_profile_owner")
 
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([researchId, teamMemberId])
   @@index([researchId])
   @@map("research_contributor")
 }
