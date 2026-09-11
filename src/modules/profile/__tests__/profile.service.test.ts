@@ -5,18 +5,14 @@ import type { AuditContext, Profile } from '../profile.types';
 
 const BLANK: Profile = {
   id: 'profile_1',
-  citationName: null,
-  fullName: '',
-  title: '',
-  photoUrl: null,
-  bio: null,
+  labName: '',
+  labTagline: null,
+  logoUrl: null,
+  labOverview: null,
   positionAffiliation: null,
   researchStatement: null,
-  linkedinUrl: null,
-  googleScholarUrl: null,
   calendlyUrl: null,
   publicationsIntro: null,
-  teachingIntro: null,
   teamIntro: null,
   eventsIntro: null,
   appointmentIntro: null,
@@ -70,18 +66,18 @@ describe('profile service', () => {
     const { service } = build();
     const result = await service.getProfile();
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.data.fullName).toBe('');
+    if (result.ok) expect(result.data.labName).toBe('');
   });
 
   it('updateProfile persists changes and writes an audit entry', async () => {
     const { repository, service } = build();
     const result = await service.updateProfile(
-      { fullName: 'Dr. Cavallaro', title: 'Professor of Information Security' },
+      { labName: 'The Culprit of Privacy Technologies', labTagline: 'Privacy research' },
       'admin:1',
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.fullName).toBe('Dr. Cavallaro');
+    expect(result.data.labName).toBe('The Culprit of Privacy Technologies');
     expect(repository.audits.at(-1)).toEqual({ actor: 'admin:1', action: 'profile.update' });
   });
 
@@ -97,21 +93,21 @@ describe('profile service', () => {
     const { repository, service } = build();
     repository.current = {
       ...BLANK,
-      fullName: 'Dr. Cavallaro',
-      title: 'Professor',
-      bio: 'Existing bio.',
+      labName: 'The Culprit',
+      labTagline: 'Privacy research',
+      labOverview: 'Existing overview.',
       researchStatement: 'Existing statement.',
     };
 
-    const result = await service.patchProfile({ teachingIntro: 'Courses I teach.' }, 'admin:1');
+    const result = await service.patchProfile({ teamIntro: 'Our team.' }, 'admin:1');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.teachingIntro).toBe('Courses I teach.');
+    expect(result.data.teamIntro).toBe('Our team.');
     // Every field another admin screen owns is unchanged.
-    expect(result.data.fullName).toBe('Dr. Cavallaro');
-    expect(result.data.title).toBe('Professor');
-    expect(result.data.bio).toBe('Existing bio.');
+    expect(result.data.labName).toBe('The Culprit');
+    expect(result.data.labTagline).toBe('Privacy research');
+    expect(result.data.labOverview).toBe('Existing overview.');
     expect(result.data.researchStatement).toBe('Existing statement.');
   });
 
@@ -127,14 +123,18 @@ describe('profile service', () => {
 
   it('patchProfile clears a field when the key is present but empty', async () => {
     const { repository, service } = build();
-    repository.current = { ...BLANK, calendlyUrl: 'https://calendly.com/old', bio: 'Keep me.' };
+    repository.current = {
+      ...BLANK,
+      calendlyUrl: 'https://calendly.com/old',
+      labOverview: 'Keep me.',
+    };
 
     const result = await service.patchProfile({ calendlyUrl: null }, 'admin:1');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data.calendlyUrl).toBeNull();
-    expect(result.data.bio).toBe('Keep me.');
+    expect(result.data.labOverview).toBe('Keep me.');
   });
 
   it('patchProfile surfaces a repository failure as an AppError result', async () => {
@@ -147,16 +147,13 @@ describe('profile service', () => {
 
   it('updateProfile still writes the whole document (unchanged by the partial path)', async () => {
     const { repository, service } = build();
-    repository.current = { ...BLANK, teachingIntro: 'Old intro.' };
+    repository.current = { ...BLANK, teamIntro: 'Old intro.' };
 
-    const result = await service.updateProfile(
-      { fullName: 'Dr. Cavallaro', title: 'Professor' },
-      'admin:1',
-    );
+    const result = await service.updateProfile({ labName: 'The Culprit' }, 'admin:1');
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.fullName).toBe('Dr. Cavallaro');
+    expect(result.data.labName).toBe('The Culprit');
     expect(repository.audits.at(-1)).toEqual({ actor: 'admin:1', action: 'profile.update' });
   });
 });

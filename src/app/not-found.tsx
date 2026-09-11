@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getProfileCached } from '@/modules/profile';
 import { SiteFooter } from './(public)/_components/site-footer';
-import { SiteHeader } from './(public)/_components/site-header';
+import { DEFAULT_LAB_NAME, SiteHeader } from './(public)/_components/site-header';
 import { PageHeading } from '@/modules/shared/ui/page-heading';
 
 // Root-level not-found — Next renders this for any unmatched route across the whole app (public
@@ -49,7 +49,7 @@ export default async function NotFound() {
           </Link>
         </p>
       </main>
-      <SiteFooter fullName={profile?.fullName || 'The Culprit'} />
+      <SiteFooter labName={profile?.labName || DEFAULT_LAB_NAME} />
     </div>
   );
 }

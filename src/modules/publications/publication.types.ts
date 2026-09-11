@@ -1,28 +1,19 @@
 // Domain model — the shape services/routes work with. Mapped from the Prisma row inside the
 // repository so Prisma's generated types never leak across the service boundary.
 /**
- * One credited author. `teamMemberId` is null for an outside co-author, and is also nulled when a
- * linked member is deleted — `name` is a snapshot taken when the row was written, so the byline
- * survives either way.
+ * One credited author: a plain name (ADR-016). The public list links it to a lab member when it
+ * matches one — see `matchMember` in the research-groups module.
  */
 export type PublicationAuthor = {
   id: string;
-  teamMemberId: string | null;
   name: string;
-  /**
-   * The professor's own row. She owns the site rather than being one of its team members, so she
-   * cannot be credited through `teamMemberId`; this flag is what distinguishes her from an outside
-   * co-author typed in by hand. Renders `Profile.citationName` rather than `name`, and always sorts
-   * first — the repository orders on this before `sortOrder`.
-   */
-  isProfileOwner: boolean;
   sortOrder: number;
 };
 
 export type Publication = {
   id: string;
   title: string;
-  /** In citation order. Empty means the professor's own solo work and renders no byline. */
+  /** In citation order. Empty renders no byline. */
   authors: PublicationAuthor[];
   venue: string;
   year: number;

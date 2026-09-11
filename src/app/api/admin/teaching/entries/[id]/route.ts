@@ -11,7 +11,7 @@ import { entityId } from '@/modules/shared/lib/schema-fields';
 import { revalidateOn } from '@/modules/shared/lib/revalidate';
 import { readJsonBody } from '@/modules/shared/lib/request';
 
-// Admin: update a CV entry. See the POST route for why both public areas are purged.
+// Admin: update a CV entry.
 export async function PUT(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const admin = await requireAdmin();
@@ -29,7 +29,7 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ id: str
       parsed.data,
       `admin:${admin.data.userId}`,
     );
-    return respond(revalidateOn(result, 'teaching', 'about'));
+    return respond(revalidateOn(result, 'teaching'));
   } catch (error) {
     return apiUnexpected(error);
   }
@@ -46,7 +46,7 @@ export async function DELETE(_request: NextRequest, ctx: { params: Promise<{ id:
     if (!parsedId.success) return apiValidationError(parsedId.error);
 
     const result = await getCvEntryService().remove(parsedId.data, `admin:${admin.data.userId}`);
-    return respond(revalidateOn(result, 'teaching', 'about'));
+    return respond(revalidateOn(result, 'teaching'));
   } catch (error) {
     return apiUnexpected(error);
   }

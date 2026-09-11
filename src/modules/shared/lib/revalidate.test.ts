@@ -29,12 +29,26 @@ describe('revalidatePublic', () => {
     expect(mockedRevalidatePath).toHaveBeenCalledWith('/api/publications');
   });
 
-  it('revalidates the team page plus both groups and team-members API routes', () => {
+  it('revalidates the team page, every profile page, and the byline pages for team edits', () => {
     revalidatePublic('team');
 
+    // The About page renders the director's card.
+    expect(mockedRevalidatePath).toHaveBeenCalledWith('/');
     expect(mockedRevalidatePath).toHaveBeenCalledWith('/team');
-    expect(mockedRevalidatePath).toHaveBeenCalledWith('/api/groups');
+    // A template path needs the `page` type, or it matches nothing.
+    expect(mockedRevalidatePath).toHaveBeenCalledWith('/team/[id]', 'page');
+    expect(mockedRevalidatePath).toHaveBeenCalledWith('/research');
+    expect(mockedRevalidatePath).toHaveBeenCalledWith('/publications');
     expect(mockedRevalidatePath).toHaveBeenCalledWith('/api/team-members');
+    expect(mockedRevalidatePath).not.toHaveBeenCalledWith('/api/groups');
+  });
+
+  it('revalidates every profile page and the teaching API route for CV/course edits', () => {
+    revalidatePublic('teaching');
+
+    expect(mockedRevalidatePath).toHaveBeenCalledWith('/team/[id]', 'page');
+    expect(mockedRevalidatePath).toHaveBeenCalledWith('/api/teaching');
+    expect(mockedRevalidatePath).toHaveBeenCalledTimes(2);
   });
 
   it('revalidates the events page and the events API route', () => {

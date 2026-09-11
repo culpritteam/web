@@ -17,7 +17,6 @@ const TABS = [
   { href: '/admin/about', label: 'About' },
   { href: '/admin/research', label: 'Research' },
   { href: '/admin/publications', label: 'Publications' },
-  { href: '/admin/teaching', label: 'Teaching' },
   { href: '/admin/team', label: 'Team' },
   { href: '/admin/events', label: 'Events' },
   { href: '/admin/appointment', label: 'Appointment' },
@@ -42,7 +41,7 @@ export function AdminNav() {
   }, [pathname]);
 
   return (
-    // One line always. Eight destinations don't fit the band on a narrow screen, so the strip
+    // One line always. Seven destinations don't fit the band on a narrow screen, so the strip
     // scrolls horizontally rather than wrapping — and `.scroll-fade` softens whichever edge still
     // has tabs beyond it, since the scrollbar itself is hidden and would otherwise leave no cue
     // that there is more to reach.

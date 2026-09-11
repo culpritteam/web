@@ -43,31 +43,9 @@ export function rateLimitExceededResponse(retryAfterSeconds: number): NextRespon
   );
 }
 
-/**
- * Old `/api/team-members?groupId=X` callers (pre-ADR-007-addendum contract) still land on the
- * unfiltered route, since Next doesn't route on query string. Redirect here, in middleware, rather
- * than in the route handler: reading `request.nextUrl.searchParams` inside a route handler is
- * itself a dynamic-API use that forces the whole route dynamic (confirmed via `next build`'s
- * "Dynamic server usage" error — the route handler previously did this and silently lost its
- * `export const revalidate = 3600` caching as a result). Middleware runs before route-level static
- * analysis and isn't subject to that rule, so the redirect can live here for free.
- */
-export function resolveTeamMembersCompatRedirect(request: NextRequest): NextResponse | null {
-  if (request.nextUrl.pathname !== '/api/team-members' || request.method !== 'GET') return null;
-  const groupId = request.nextUrl.searchParams.get('groupId');
-  if (!groupId) return null;
-  return NextResponse.redirect(
-    new URL(`/api/team-members/group/${encodeURIComponent(groupId)}`, request.url),
-    307,
-  );
-}
-
 const PRIVATE_NO_STORE = 'private, no-store';
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
-  const redirect = resolveTeamMembersCompatRedirect(request);
-  if (redirect) return redirect;
-
   const { pathname } = request.nextUrl;
   const isPrivateSurface = pathname.startsWith('/api/auth/') || pathname.startsWith('/api/admin/');
 
@@ -94,5 +72,5 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  matcher: ['/api/auth/:path*', '/api/admin/:path*', '/api/team-members'],
+  matcher: ['/api/auth/:path*', '/api/admin/:path*'],
 };

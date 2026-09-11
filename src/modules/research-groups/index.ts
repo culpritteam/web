@@ -1,43 +1,34 @@
-// research-groups module — groups + CV-style team members (researchers & visiting professors).
-// Team members are the closely-related, FK'd entity and live here too (research-group.* / team-member.*).
-
-export {
-  createResearchGroupSchema,
-  updateResearchGroupSchema,
-  type CreateResearchGroupInput,
-  type UpdateResearchGroupInput,
-} from './research-group.schema';
-
-export type { ResearchGroup, ResearchGroupSummary, AuditContext } from './research-group.types';
-
-export {
-  createResearchGroupService,
-  type ResearchGroupService,
-  type ResearchGroupServiceDeps,
-} from './research-group.service';
-
-export type { ResearchGroupRepository } from './research-group.repository';
+// research-groups module — the lab's team members (ADR-016). The name predates the removal of
+// research groups and is kept so imports did not all have to move; every member has a profile page,
+// and the director is the member flagged `isDirector`.
 
 export {
   createTeamMemberSchema,
   updateTeamMemberSchema,
-  teamMemberGroupIdSchema,
   type CreateTeamMemberInput,
   type UpdateTeamMemberInput,
 } from './team-member.schema';
 
-export type { TeamMember, TeamMemberStats } from './team-member.types';
+export type {
+  TeamMember,
+  TeamMemberProfile,
+  TeamMemberStats,
+  AuditContext,
+} from './team-member.types';
 
 export {
   createTeamMemberService,
   type TeamMemberService,
   type TeamMemberServiceDeps,
+  type MemberCvDirectory,
 } from './team-member.service';
 
-export type { TeamMemberRepository, ListTeamMembersFilter } from './team-member.repository';
+export type { TeamMemberRepository } from './team-member.repository';
 
-export { getResearchGroupService, getTeamMemberService } from './container';
+export { matchMember, type BylineMember } from './byline-match';
 
-export { TeamMembersView } from './ui/team-members-view';
-export { ResearchGroupsTable } from './ui/research-groups-table';
+export { getTeamMemberService } from './container';
+
+export { TeamMembersView, TeamMemberCard, memberInitials } from './ui/team-members-view';
+export { BylineNames } from './ui/byline-names';
 export { TeamMembersTable } from './ui/team-members-table';

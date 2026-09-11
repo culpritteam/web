@@ -14,7 +14,7 @@ import { createEventService, type EventService, type TeamMemberDirectory } from 
  *
  * Both reads throw on failure rather than returning a Result: the service runs every method inside
  * `attempt()`, which maps a thrown error through `toAppError` onto the Result channel, so
- * unwrapping here keeps the port's signature to the two fields events actually needs.
+ * unwrapping here keeps the port's signature to what events actually needs.
  */
 const teamMemberDirectory: TeamMemberDirectory = {
   async byId(id) {
@@ -26,17 +26,6 @@ const teamMemberDirectory: TeamMemberDirectory = {
     return member
       ? { id: member.id, name: member.name, role: member.role, photoUrl: member.photoUrl }
       : null;
-  },
-
-  async byGroup(researchGroupId) {
-    const result = await getTeamMemberService().list({ groupId: researchGroupId });
-    if (!result.ok) throw result.error;
-    return result.data.map((member) => ({
-      id: member.id,
-      name: member.name,
-      role: member.role,
-      photoUrl: member.photoUrl,
-    }));
   },
 };
 

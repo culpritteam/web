@@ -9,7 +9,8 @@ import type { CreateCourseInput, UpdateCourseInput } from './teaching.schema';
 
 export interface CourseRepository {
   findById(id: string): Promise<Course | null>;
-  list(): Promise<Course[]>;
+  /** One member's courses, in the admin's arrangement. */
+  listForMember(teamMemberId: string): Promise<Course[]>;
   /** Counts only — no course rows leave the database. */
   stats(): Promise<CourseStats>;
   createWithAudit(input: { data: CreateCourseInput; audit: AuditContext }): Promise<Course>;
@@ -24,6 +25,7 @@ export interface CourseRepository {
 function toDomain(row: PrismaCourse): Course {
   return {
     id: row.id,
+    teamMemberId: row.teamMemberId,
     code: row.code,
     title: row.title,
     level: row.level,
@@ -45,10 +47,11 @@ export class PrismaCourseRepository implements CourseRepository {
     return row ? toDomain(row) : null;
   }
 
-  async list(): Promise<Course[]> {
+  async listForMember(teamMemberId: string): Promise<Course[]> {
     // `sortOrder` is the admin's arrangement; `title` only breaks ties so equal-ordered rows
-    // don't shuffle between requests. The public tab groups by `level` in render order.
+    // don't shuffle between requests. The profile page groups by `level` in render order.
     const rows = await prisma.course.findMany({
+      where: { teamMemberId },
       orderBy: [{ sortOrder: 'asc' }, { title: 'asc' }],
     });
     return rows.map(toDomain);
@@ -62,6 +65,7 @@ export class PrismaCourseRepository implements CourseRepository {
     const created = await prisma.$transaction(async (tx) => {
       const row = await tx.course.create({
         data: {
+          teamMemberId: input.data.teamMemberId,
           code: input.data.code ?? null,
           title: input.data.title,
           level: input.data.level,

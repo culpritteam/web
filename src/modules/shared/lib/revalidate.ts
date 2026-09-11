@@ -11,8 +11,9 @@ import type { Result } from './result';
 // own: without an explicit signal, an admin edit would never reach the public site until the next
 // deploy. This module is that signal, so the site stays both fast and current.
 //
-// Paths are written in their real, rendered form (e.g. `/research`), not a route-template form.
-// Routing is flat — there is no `[locale]` segment (removed in ADR-006, 2026-08-08); route groups
+// Paths are written in their real, rendered form (e.g. `/research`), except for the one dynamic
+// page, `/team/[id]`, which is a route template: every member's profile page renders from it, and
+// `revalidatePath('/team/[id]', 'page')` purges all of them at once. Routing is flat — there is no `[locale]` segment (removed in ADR-006, 2026-08-08); route groups
 // like `(public)` don't add a URL segment, so `src/app/(public)/research/page.tsx` renders at
 // exactly `/research`. `revalidatePath` silently no-ops on a non-matching path (it never throws),
 // which is how the previous `/[locale]/...` paths went unnoticed as dead invalidation calls — see
@@ -26,23 +27,24 @@ const AREA_PATHS = {
   research: ['/research', '/api/research'],
   publications: ['/publications', '/api/publications'],
   /**
-   * Research groups and their members share the Team Members tab. Only the unfiltered
-   * `/api/team-members` route is purged here — its per-group sibling
-   * `/api/team-members/group/{groupId}` (see ADR-007's addendum) has no fixed path to target,
-   * since the id is only known at request time, so it isn't covered by on-demand invalidation.
-   * That's an accepted gap, not an oversight: it relies on its own 3600s `revalidate` ceiling
-   * alone, same tradeoff already made for `/api/events/upcoming`'s time-sensitivity, just longer
-   * because group membership changes are rare and low-stakes if briefly stale.
+   * Team members: the Team tab, every member profile page, and — because a byline name that
+   * matches a member's name or citation name is highlighted and linked — Research and Publications.
+   *
+   * `/api/team-members/{id}` is not listed: a template purge targets a route's `page` entry, which a
+   * route handler does not have, so the per-member API mirror relies on its own 3600s `revalidate`
+   * ceiling alone. Accepted gap: the profile PAGE, which is what visitors see, is purged.
    */
-  team: ['/team', '/api/groups', '/api/team-members'],
+  team: ['/', '/team', '/team/[id]', '/teaching', '/research', '/publications', '/api/team-members'],
   /** The Events tab — both halves (upcoming and past) come from the same list. */
   events: ['/events', '/api/events'],
-  /** The Teaching tab: courses plus the two teaching CV lists. */
-  teaching: ['/teaching', '/api/teaching'],
+  /**
+   * CV entries and courses. They render on their member's profile page; `/api/teaching` mirrors the
+   * director's. The member id is not known here, so every profile page is purged.
+   */
+  teaching: ['/team/[id]', '/api/teaching'],
   /**
    * The About tab alone. Separate from `'profile'`, which drops the whole layout subtree because
-   * the professor's name and photo render in the site header on every page. A CV entry only
-   * changes the body of `/`, so purging the entire tree for it would be indiscriminate.
+   * the lab's name and logo render in the site header on every page.
    */
   about: ['/'],
   /**
@@ -65,10 +67,20 @@ const PUBLIC_PAGE_PATHS: string[] = [
   ),
 ];
 
+/** A route template such as `/team/[id]`, rather than a real URL. */
+const isTemplate = (path: string) => path.includes('[');
+
+/**
+ * Cloudflare purges by real URL, so a template is dropped from the edge purge list: there is no
+ * `/team/[id]` URL to purge, and the member ids are not known here. Those pages fall back to their
+ * edge TTL, the same accepted gap as any dynamic public route.
+ */
+const edgePurgeable = (paths: readonly string[]) => paths.filter((path) => !isTemplate(path));
+
 /**
  * Invalidate the public pages (and mirrored public API routes) affected by a change.
  *
- * Use `'profile'` for profile edits: the professor's name, title and photo render in the site
+ * Use `'profile'` for profile edits: the lab's name, tagline and logo render in the site
  * header, which lives in the public *layout* and therefore appears on every tab — so a profile
  * save has to drop the whole subtree, not just the About page. `/api/profile` is purged alongside it.
  */
@@ -84,10 +96,14 @@ export function revalidatePublic(...areas: (PublicArea | 'profile')[]): void {
       // listing only `/` would leave the other tabs served from the edge until their own TTL. The
       // profile row feeds every tab (the header name/photo on all of them, and since 2026-09-02
       // the per-tab intro copy on five of them), so every public page URL is named here.
-      purgePaths.push('/api/profile', ...PUBLIC_PAGE_PATHS);
+      purgePaths.push('/api/profile', ...edgePurgeable(PUBLIC_PAGE_PATHS));
     } else {
-      for (const path of AREA_PATHS[area]) revalidatePath(path);
-      purgePaths.push(...AREA_PATHS[area]);
+      // A template needs `type` — without it `revalidatePath` matches nothing and silently no-ops.
+      for (const path of AREA_PATHS[area]) {
+        if (isTemplate(path)) revalidatePath(path, 'page');
+        else revalidatePath(path);
+      }
+      purgePaths.push(...edgePurgeable(AREA_PATHS[area]));
     }
   }
 

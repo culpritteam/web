@@ -22,7 +22,6 @@ import type { Event } from '../event.types';
 import { EventFormDialog } from './event-form-dialog';
 import {
   EventParticipantsDialog,
-  type ParticipantGroup,
   type ParticipantPerson,
 } from './event-participants-dialog';
 
@@ -46,12 +45,10 @@ const dateTimeFormatter = new Intl.DateTimeFormat('en', {
 export function EventsTable({
   items,
   members = [],
-  groups = [],
 }: {
   items: Event[];
   /** Pickers for the participants dialog. Default empty so the table still renders without them. */
   members?: ParticipantPerson[];
-  groups?: ParticipantGroup[];
 }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Event | undefined>(undefined);
@@ -176,7 +173,6 @@ export function EventsTable({
         onOpenChange={(open) => !open && setParticipantsFor(undefined)}
         event={participantsEvent}
         members={members}
-        groups={groups}
       />
 
       <ConfirmDialog

@@ -1,19 +1,37 @@
 import { NotFoundError } from '@/modules/shared/lib/errors';
 import { attempt, type Result } from '@/modules/shared/lib/result';
 import { logger as defaultLogger, type Logger } from '@/modules/shared/lib/logger';
-import type { ListTeamMembersFilter, TeamMemberRepository } from './team-member.repository';
-import type { TeamMember, TeamMemberStats } from './team-member.types';
+import type { Course, CvEntry } from '@/modules/teaching';
+import type { TeamMemberRepository } from './team-member.repository';
+import type { TeamMember, TeamMemberProfile, TeamMemberStats } from './team-member.types';
 import type { CreateTeamMemberInput, UpdateTeamMemberInput } from './team-member.schema';
+
+/**
+ * Port onto the teaching module's per-member reads. Injected rather than imported so this service
+ * never reaches into another module's repository, and so `findProfile` is testable without a
+ * database. Wired to the teaching services in `container.ts`. Both reads throw on failure; the
+ * service runs inside `attempt()`, which maps a throw onto the Result channel.
+ */
+export interface MemberCvDirectory {
+  cvEntriesFor(teamMemberId: string): Promise<CvEntry[]>;
+  coursesFor(teamMemberId: string): Promise<Course[]>;
+}
 
 export type TeamMemberServiceDeps = {
   repository: TeamMemberRepository;
+  cv: MemberCvDirectory;
   logger?: Logger;
 };
 
 export interface TeamMemberService {
-  /** One member by id. Exists so callers that need a single person don't list the whole table. */
+  /** One member by id, or null. */
   findById(id: string): Promise<Result<TeamMember | null>>;
-  list(filter?: ListTeamMembersFilter): Promise<Result<TeamMember[]>>;
+  /** Everything the member's public profile page renders, or null when the id is unknown. */
+  findProfile(id: string): Promise<Result<TeamMemberProfile | null>>;
+  /** The director's profile, or null when no member is flagged director. */
+  findDirectorProfile(): Promise<Result<TeamMemberProfile | null>>;
+  /** Every member, the director first, then by sortOrder. */
+  list(): Promise<Result<TeamMember[]>>;
   /** Headline counts for the dashboard, aggregated in SQL. */
   stats(): Promise<Result<TeamMemberStats>>;
   create(input: CreateTeamMemberInput, actor: string): Promise<Result<TeamMember>>;
@@ -23,7 +41,7 @@ export interface TeamMemberService {
 }
 
 export function createTeamMemberService(deps: TeamMemberServiceDeps): TeamMemberService {
-  const { repository } = deps;
+  const { repository, cv } = deps;
   const log = deps.logger ?? defaultLogger;
 
   async function requireExisting(id: string): Promise<TeamMember> {
@@ -32,10 +50,28 @@ export function createTeamMemberService(deps: TeamMemberServiceDeps): TeamMember
     return existing;
   }
 
+  async function profileOf(member: TeamMember | null): Promise<TeamMemberProfile | null> {
+    if (!member) return null;
+    const [cvEntries, courses] = await Promise.all([
+      cv.cvEntriesFor(member.id),
+      cv.coursesFor(member.id),
+    ]);
+    return { member, cvEntries, courses };
+  }
+
   return {
     findById: (id) => attempt(() => repository.findById(id)),
 
-    list: (filter) => attempt(() => repository.list(filter)),
+    findProfile: (id) => attempt(async () => profileOf(await repository.findById(id))),
+
+    findDirectorProfile: () =>
+      attempt(async () => {
+        // The list is already ordered director-first and is a handful of rows.
+        const [first] = await repository.list();
+        return profileOf(first?.isDirector ? first : null);
+      }),
+
+    list: () => attempt(() => repository.list()),
 
     stats: () => attempt(() => repository.stats()),
 
@@ -45,7 +81,7 @@ export function createTeamMemberService(deps: TeamMemberServiceDeps): TeamMember
           data: input,
           audit: { actor, action: 'team_member.create' },
         });
-        log.info('team_member_created', { id: created.id, actor });
+        log.info('team_member_created', { id: created.id, actor, isDirector: created.isDirector });
         return created;
       }),
 
@@ -64,7 +100,22 @@ export function createTeamMemberService(deps: TeamMemberServiceDeps): TeamMember
     remove: (id, actor) =>
       attempt(async () => {
         const existing = await requireExisting(id);
-        await repository.deleteWithAudit({ id, audit: { actor, action: 'team_member.delete' } });
+        // Their CV entries and courses cascade with them, so the before-state goes into the audit
+        // entry: a hand-typed profile has no other copy once the row is gone.
+        await repository.deleteWithAudit({
+          id,
+          audit: {
+            actor,
+            action: 'team_member.delete',
+            metadata: {
+              name: existing.name,
+              citationName: existing.citationName,
+              role: existing.role,
+              affiliation: existing.affiliation,
+              isDirector: existing.isDirector,
+            },
+          },
+        });
         log.info('team_member_deleted', { id, actor });
         return existing;
       }),

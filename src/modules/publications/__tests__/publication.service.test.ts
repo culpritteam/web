@@ -11,9 +11,7 @@ import type { AuditContext, Publication, PublicationAuthor } from '../publicatio
 function toAuthors(input: CreatePublicationData['authors'] | undefined): PublicationAuthor[] {
   return (input ?? []).map((author, index) => ({
     id: `author_${index}`,
-    teamMemberId: author.teamMemberId ?? null,
     name: author.name,
-    isProfileOwner: author.isProfileOwner ?? false,
     sortOrder: index,
   }));
 }
@@ -111,7 +109,7 @@ describe('publication service', () => {
     const result = await service.create(
       {
         title: 'X',
-        authors: [{ name: 'Y', isProfileOwner: false }],
+        authors: [{ name: 'Y' }],
         venue: 'Z',
         year: 2024,
         link: 'https://example.com',

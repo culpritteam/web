@@ -15,7 +15,6 @@ const TABS = [
   { href: '/', label: 'About' },
   { href: '/research', label: 'Research' },
   { href: '/publications', label: 'Publications' },
-  { href: '/teaching', label: 'Teaching' },
   { href: '/team', label: 'Team' },
   { href: '/events', label: 'Events' },
   { href: '/appointment', label: 'Make Appointment' },
@@ -38,7 +37,8 @@ export function NavTabs() {
     <nav aria-label="Primary" className="scroll-fade -mb-px overflow-x-auto scrollbar-hidden">
       <ul className="flex min-w-max items-center gap-1 sm:gap-2">
         {TABS.map(({ href, label }) => {
-          const active = pathname === href;
+          // A member profile lives under /team, so the Team tab stays current there.
+          const active = href === '/team' ? pathname.startsWith('/team') : pathname === href;
           return (
             <li key={href}>
               <Link

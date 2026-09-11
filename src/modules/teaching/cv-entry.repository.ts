@@ -1,7 +1,7 @@
 import { prisma } from '@/modules/shared/lib/prisma';
 import { auditLogData } from '@/modules/shared/lib/audit';
 import type { Prisma, CvEntry as PrismaCvEntry } from '@prisma/client';
-import type { AuditContext, CvEntry, CvEntryStats, CvSection } from './teaching.types';
+import type { AuditContext, CvEntry, CvEntryStats } from './teaching.types';
 import type { CreateCvEntryInput, UpdateCvEntryInput } from './teaching.schema';
 
 // The ONLY place Prisma is used for CV entries. No business rules here — the service decides WHAT
@@ -9,10 +9,8 @@ import type { CreateCvEntryInput, UpdateCvEntryInput } from './teaching.schema';
 
 export interface CvEntryRepository {
   findById(id: string): Promise<CvEntry | null>;
-  /** Every entry, ordered by section then the admin's arrangement. */
-  list(): Promise<CvEntry[]>;
-  /** Only the given sections — what each public tab actually needs. */
-  listBySections(sections: readonly CvSection[]): Promise<CvEntry[]>;
+  /** One member's entries, ordered by section then the admin's arrangement. */
+  listForMember(teamMemberId: string): Promise<CvEntry[]>;
   /** Counts only — how many entries there are and which sections are populated. */
   stats(): Promise<CvEntryStats>;
   createWithAudit(input: { data: CreateCvEntryInput; audit: AuditContext }): Promise<CvEntry>;
@@ -27,6 +25,7 @@ export interface CvEntryRepository {
 function toDomain(row: PrismaCvEntry): CvEntry {
   return {
     id: row.id,
+    teamMemberId: row.teamMemberId,
     section: row.section,
     title: row.title,
     subtitle: row.subtitle,
@@ -56,23 +55,14 @@ export class PrismaCvEntryRepository implements CvEntryRepository {
     return row ? toDomain(row) : null;
   }
 
-  async list(): Promise<CvEntry[]> {
-    const rows = await prisma.cvEntry.findMany({ orderBy: LIST_ORDER });
-    return rows.map(toDomain);
-  }
-
-  async listBySections(sections: readonly CvSection[]): Promise<CvEntry[]> {
-    if (sections.length === 0) return [];
-    const rows = await prisma.cvEntry.findMany({
-      where: { section: { in: [...sections] } },
-      orderBy: LIST_ORDER,
-    });
+  async listForMember(teamMemberId: string): Promise<CvEntry[]> {
+    const rows = await prisma.cvEntry.findMany({ where: { teamMemberId }, orderBy: LIST_ORDER });
     return rows.map(toDomain);
   }
 
   async stats(): Promise<CvEntryStats> {
-    // Batched into one round trip. The groupBy is a DISTINCT over the (section, sortOrder) index;
-    // it answers "which sections have anything in them" without reading a single entry.
+    // Batched into one round trip. The groupBy answers "which sections have anything in them"
+    // without reading a single entry.
     const [total, sections] = await prisma.$transaction([
       prisma.cvEntry.count(),
       prisma.cvEntry.groupBy({ by: ['section'] }),
@@ -87,6 +77,7 @@ export class PrismaCvEntryRepository implements CvEntryRepository {
     const created = await prisma.$transaction(async (tx) => {
       const row = await tx.cvEntry.create({
         data: {
+          teamMemberId: input.data.teamMemberId,
           section: input.data.section,
           title: input.data.title,
           subtitle: input.data.subtitle ?? null,

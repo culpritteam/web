@@ -23,8 +23,8 @@ import { PhotoUploadField } from './photo-upload-field';
 // The one profile editor, shared by every admin screen.
 //
 // The admin IA gives each public tab its own admin screen, and the profile singleton is spread
-// across all of them: About owns the identity and bio, Research owns the research statement,
-// Publications/Teaching/Team/Events own their standfirst, Appointment owns the Calendly link.
+// across all of them: About owns the lab identity and overview, Research owns the research
+// statement, Publications/Team/Events own their standfirst, Appointment owns the Calendly link.
 // Each screen mounts this component with the field keys it owns and PATCHes only those — the
 // route's "key absent means column untouched" contract is what stops five screens from
 // clobbering each other's slice of one row.
@@ -34,18 +34,14 @@ import { PhotoUploadField } from './photo-upload-field';
 
 /** Every writable profile field, in the order the public site reads them. */
 export const PROFILE_FIELD_KEYS = [
-  'fullName',
-  'citationName',
-  'title',
-  'photoUrl',
+  'labName',
+  'labTagline',
+  'logoUrl',
   'positionAffiliation',
-  'bio',
+  'labOverview',
   'researchStatement',
-  'linkedinUrl',
-  'googleScholarUrl',
   'calendlyUrl',
   'publicationsIntro',
-  'teachingIntro',
   'teamIntro',
   'eventsIntro',
   'appointmentIntro',
@@ -57,7 +53,7 @@ export type ProfileFieldKey = (typeof PROFILE_FIELD_KEYS)[number];
  * How a field is drawn, and — the part that matters — what "empty" looks like on the wire.
  *
  * The three prose/URL kinds send `''`, which the schema's transform turns into `undefined` with
- * the KEY STILL PRESENT, so the repository writes NULL. `photoUrl` cannot: its schema is a bare
+ * the KEY STILL PRESENT, so the repository writes NULL. `logoUrl` cannot: its schema is a bare
  * `.url()` and `''` fails it, so clearing a photo has to send an explicit `null` (the schema is
  * `.nullable()` for exactly this). Sending `undefined` would be wrong for all four — JSON.stringify
  * drops undefined keys, and a dropped key means "leave the column alone".
@@ -74,33 +70,26 @@ type FieldMeta = {
 };
 
 const FIELD_META: Record<ProfileFieldKey, FieldMeta> = {
-  fullName: {
-    label: 'Full name',
+  labName: {
+    label: 'Lab name',
     kind: 'text',
     required: true,
     description: 'Shown in the site header on every public page.',
   },
-  citationName: {
-    label: 'Name on papers',
+  labTagline: {
+    label: 'Tagline',
     kind: 'text',
-    description:
-      'How you are credited on a publication — “J. Jaimunk”, not your full display name. Used wherever you credit yourself on research or a publication; leave blank to fall back to the full name.',
+    description: 'Optional. The line directly beneath the lab name.',
   },
-  title: {
-    label: 'Title',
-    kind: 'text',
-    required: true,
-    description: 'The line directly beneath the name, e.g. “Professor of Information Security”.',
-  },
-  photoUrl: { label: 'Photo', kind: 'photo' },
+  logoUrl: { label: 'Logo', kind: 'photo' },
   positionAffiliation: {
-    label: 'Position & affiliation',
+    label: 'Affiliation',
     kind: 'textarea',
     rows: 2,
-    description: 'One line. Opens the public About tab, above the bio.',
+    description: 'One line, e.g. the host department and university. Shown in the site header.',
   },
-  bio: {
-    label: 'Short bio',
+  labOverview: {
+    label: 'Lab overview',
     kind: 'textarea',
     rows: 6,
     description: 'The opening prose of the public About tab.',
@@ -110,18 +99,6 @@ const FIELD_META: Record<ProfileFieldKey, FieldMeta> = {
     kind: 'textarea',
     rows: 6,
     description: 'The prose that opens the public Research tab, above the research interests.',
-  },
-  linkedinUrl: {
-    label: 'LinkedIn profile URL',
-    kind: 'url',
-    placeholder: 'https://www.linkedin.com/in/…',
-    description: 'Optional. Shown as a link under the bio.',
-  },
-  googleScholarUrl: {
-    label: 'Google Scholar profile URL',
-    kind: 'url',
-    placeholder: 'https://scholar.google.com/citations?user=…',
-    description: 'Optional. Shown as a link under the bio.',
   },
   calendlyUrl: {
     label: 'Calendly scheduling URL',
@@ -136,17 +113,11 @@ const FIELD_META: Record<ProfileFieldKey, FieldMeta> = {
     rows: 3,
     description: 'Optional standfirst above the publication list. Blank keeps the built-in text.',
   },
-  teachingIntro: {
-    label: 'Teaching introduction',
-    kind: 'textarea',
-    rows: 3,
-    description: 'Optional standfirst above the course list. Blank keeps the built-in text.',
-  },
   teamIntro: {
     label: 'Team introduction',
     kind: 'textarea',
     rows: 3,
-    description: 'Optional standfirst above the research groups. Blank keeps the built-in text.',
+    description: 'Optional standfirst above the member list. Blank keeps the built-in text.',
   },
   eventsIntro: {
     label: 'Events introduction',
@@ -177,7 +148,7 @@ export type ProfileFormSection = {
 };
 
 /** The fields whose schema is `.nullable()`, so `null` is a legal value to send. */
-type NullableFieldKey = 'photoUrl' | 'linkedinUrl' | 'googleScholarUrl' | 'calendlyUrl';
+type NullableFieldKey = 'logoUrl' | 'calendlyUrl';
 
 /**
  * Raw form state — structurally the schema's INPUT type, so `zodResolver`'s generics line up
@@ -193,7 +164,7 @@ function toDefaults(profile: Profile | null, fields: readonly ProfileFieldKey[])
   // TS can only narrow per-key. Every write below is legal for the key it targets.
   const defaults: Record<string, string | null> = {};
   for (const key of fields) {
-    // `photoUrl` keeps null (it is the value the picker sets to clear); everything else uses ''
+    // `logoUrl` keeps null (it is the value the picker sets to clear); everything else uses ''
     // so an untouched empty field and a deliberately emptied one look the same on the wire.
     defaults[key] = profile?.[key] ?? (FIELD_META[key].kind === 'photo' ? null : '');
   }
@@ -230,7 +201,7 @@ export function ProfileFieldsForm({ profile, sections }: ProfileFieldsFormProps)
 
   const form = useForm<FormValues, unknown, PatchProfileInput>({
     // The partial schema, not the whole-document one: it validates exactly the keys present, so a
-    // screen that owns one field is judged on that one field. `min(1)` still guards name/title.
+    // screen that owns one field is judged on that one field. `min(1)` still guards the lab name.
     resolver: zodResolver(patchProfileSchema),
     defaultValues: toDefaults(profile, fields),
   });
@@ -333,7 +304,7 @@ function ProfileField({ fieldKey, register, errors }: FieldProps) {
           <Textarea
             {...fieldProps}
             // Nothing here is a browser-autofillable identity field — without this a password
-            // manager offers to fill "Full name" and "Title" with the admin's own credentials.
+            // manager offers to fill these with the admin's own credentials.
             autoComplete="off"
             rows={meta.rows}
             placeholder={meta.placeholder}

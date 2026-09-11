@@ -11,7 +11,7 @@ import { Dialog, DialogFooter } from '@/modules/shared/ui/dialog';
 import { Button } from '@/modules/shared/ui/button';
 import { Input } from '@/modules/shared/ui/input';
 import { Textarea } from '@/modules/shared/ui/textarea';
-import { BylineField, type BylinePerson } from '@/modules/shared/ui/byline-field';
+import { BylineField } from '@/modules/shared/ui/byline-field';
 import { FormField } from '@/modules/shared/ui/form-field';
 // Deep, module-internal imports (not the barrel): `@/modules/research`'s index also re-exports
 // `getResearchService`, whose composition root imports the Prisma repository (`pg`/`fs`, Node-only).
@@ -37,17 +37,14 @@ export function ResearchFormDialog({
   open,
   onOpenChange,
   research,
-  members,
-  owner,
+  suggestions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Present for edit; absent for create. */
   research?: Research;
-  /** Everyone who can be credited. Passed down from the server page — this dialog reads nothing. */
-  members: BylinePerson[];
-  /** How the professor is credited on her own work, from `Profile.citationName`. */
-  owner?: { citationName: string } | null;
+  /** Lab member names offered while typing a byline. Passed down from the server page. */
+  suggestions: readonly string[];
 }) {
   const router = useRouter();
   const isEdit = Boolean(research);
@@ -67,11 +64,7 @@ export function ResearchFormDialog({
       title: research?.title ?? '',
       // Only the two fields that get sent back — sortOrder is re-derived from this array's order.
       contributors:
-        research?.contributors.map(({ teamMemberId, name, isProfileOwner }) => ({
-          teamMemberId,
-          name,
-          isProfileOwner,
-        })) ?? [],
+        research?.contributors.map(({ name }) => ({ name })) ?? [],
       summary: research?.summary ?? '',
       area: research?.area ?? '',
       link: research?.link ?? '',
@@ -153,9 +146,7 @@ export function ResearchFormDialog({
               error={errors.contributors?.message ?? errors.contributors?.root?.message}
               value={field.value ?? []}
               onChange={field.onChange}
-              members={members}
-              owner={owner}
-              externalLabel="Add an outside collaborator"
+              suggestions={suggestions}
               emptyHint="No contributors listed — this will show as your own work."
             />
           )}

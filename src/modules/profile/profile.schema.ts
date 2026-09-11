@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { stripHtml } from '@/modules/shared/lib/sanitize';
 import { httpUrl, optionalUrl, safeText } from '@/modules/shared/lib/schema-fields';
 
-// The CV list fields are gone from this schema: they are `cv_entry` rows now, edited one at a
-// time through the teaching module rather than as part of this whole-document PUT (ADR-012).
+// The lab's singleton (ADR-016). The professor's personal fields moved to her team-member row; CV
+// lists are `cv_entry` rows edited through the teaching module (ADR-012).
 
 // Local rather than the shared `optionalText`: these fields parse an emptied value to `undefined`,
 // which the profile repository's `key in data` check still writes as NULL. The shared helper's
@@ -16,26 +16,18 @@ const optionalSafeText = (max: number) =>
     .transform((value) => stripHtml(value) || undefined)
     .optional();
 
-/** Admin: replace the whole structured profile (singleton, full-document PUT). */
+/** Admin: replace the whole lab profile (singleton, full-document PUT). */
 export const updateProfileSchema = z.object({
-  fullName: safeText(200),
-  /**
-   * How she is credited on a paper — "J. Jaimunk", not "Jenjira Jaimunk, PhD.". Optional: leave it
-   * empty and a self-credited byline falls back to the full name.
-   */
-  citationName: optionalSafeText(200),
-  title: safeText(200),
-  photoUrl: httpUrl.nullable().optional(),
-  bio: optionalSafeText(5000),
+  labName: safeText(200),
+  labTagline: optionalSafeText(300),
+  logoUrl: httpUrl.nullable().optional(),
+  labOverview: optionalSafeText(5000),
   positionAffiliation: optionalSafeText(3000),
   researchStatement: optionalSafeText(5000),
-  linkedinUrl: optionalUrl,
-  googleScholarUrl: optionalUrl,
   calendlyUrl: optionalUrl,
   // Per-tab standfirst prose. 2000 chars is a standfirst, not an essay — the long-form fields
-  // (bio, researchStatement) keep their 5000.
+  // (labOverview, researchStatement) keep their 5000.
   publicationsIntro: optionalSafeText(2000),
-  teachingIntro: optionalSafeText(2000),
   teamIntro: optionalSafeText(2000),
   eventsIntro: optionalSafeText(2000),
   appointmentIntro: optionalSafeText(2000),
@@ -45,8 +37,8 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 /**
  * Admin: update SOME fields of the singleton, leaving every unmentioned field alone.
  *
- * The admin IA gives each public tab its own admin screen — About edits identity/bio/links,
- * Research edits `researchStatement`, Teaching edits `teachingIntro`, and so on. With only the
+ * The admin IA gives each public tab its own admin screen — About edits the lab identity and
+ * overview, Research edits `researchStatement`, Team edits `teamIntro`, and so on. With only the
  * whole-document PUT above, every one of those screens would have to round-trip the other
  * screens' fields and would clobber them on a concurrent save. A partial write is what makes
  * that IA correct.

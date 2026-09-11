@@ -45,14 +45,7 @@ export interface PublicationRepository {
  * rows that somehow share a `sortOrder`, so the order is total and the list never reshuffles
  * between two reads.
  */
-const AUTHOR_ORDER = [
-  // The professor first on every paper she is on, whatever position the stored list puts her in.
-  // Ordering here rather than at render time means every consumer — public list, admin table, edit
-  // form — agrees on the order without each re-implementing the rule.
-  { isProfileOwner: 'desc' as const },
-  { sortOrder: 'asc' as const },
-  { createdAt: 'asc' as const },
-];
+const AUTHOR_ORDER = [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }];
 
 const withAuthors = { authors: { orderBy: AUTHOR_ORDER } };
 
@@ -61,22 +54,14 @@ type PrismaPublicationRow = PrismaPublication & { authors: PrismaPublicationAuth
 function toAuthor(row: PrismaPublicationAuthor): PublicationAuthor {
   return {
     id: row.id,
-    teamMemberId: row.teamMemberId,
     name: row.name,
-    isProfileOwner: row.isProfileOwner,
     sortOrder: row.sortOrder,
   };
 }
 
 /** The array's own order IS the stored order — the index becomes `sortOrder`. */
 const toAuthorRows = (authors: PublicationAuthorInput[]) =>
-  authors.map((author, index) => ({
-    // Her own row is never a team-member link, even if a client sent one.
-    teamMemberId: author.isProfileOwner ? null : (author.teamMemberId ?? null),
-    name: author.name,
-    isProfileOwner: author.isProfileOwner,
-    sortOrder: index,
-  }));
+  authors.map((author, index) => ({ name: author.name, sortOrder: index }));
 
 function toDomain(row: PrismaPublicationRow): Publication {
   return {

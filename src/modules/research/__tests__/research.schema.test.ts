@@ -53,8 +53,7 @@ describe('createResearchSchema', () => {
     });
     expect(result.success).toBe(false);
   });
-  // Attribution is rows, not a column: an empty list is how "his own solo work" is expressed.
-  it('accepts an empty contributor list, which means solo work', () => {
+  it('accepts an empty contributor list', () => {
     const result = createResearchSchema.safeParse({
       title: 'Malware Analysis',
       summary: 'Studying evasive malware.',
@@ -64,28 +63,23 @@ describe('createResearchSchema', () => {
     if (result.success) expect(result.data.contributors).toEqual([]);
   });
 
-  it('accepts linked team members and outside collaborators in one list', () => {
+  it('keeps only the name of each contributor', () => {
     const result = createResearchSchema.safeParse({
       title: 'Malware Analysis',
       summary: 'Studying evasive malware.',
       area: 'malware analysis',
-      contributors: [
-        { teamMemberId: 'tm_1', name: 'R. Lindqvist' },
-        { teamMemberId: null, name: 'T. Meyer' },
-      ],
+      contributors: [{ name: 'R. Lindqvist', teamMemberId: 'tm_1', isProfileOwner: false }],
     });
     expect(result.success).toBe(true);
+    if (result.success) expect(result.data.contributors).toEqual([{ name: 'R. Lindqvist' }]);
   });
 
-  it('rejects the same team member credited twice', () => {
+  it('rejects more than 20 contributors', () => {
     const result = createResearchSchema.safeParse({
       title: 'Malware Analysis',
       summary: 'Studying evasive malware.',
       area: 'malware analysis',
-      contributors: [
-        { teamMemberId: 'tm_1', name: 'R. Lindqvist' },
-        { teamMemberId: 'tm_1', name: 'R. Lindqvist' },
-      ],
+      contributors: Array.from({ length: 21 }, (_, i) => ({ name: `C${i}` })),
     });
     expect(result.success).toBe(false);
   });

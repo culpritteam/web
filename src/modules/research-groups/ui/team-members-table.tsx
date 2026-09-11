@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Users2 } from 'lucide-react';
+import Link from 'next/link';
+import { IdCard, Plus, Users2 } from 'lucide-react';
 import { Avatar } from '@/modules/shared/ui/avatar';
 import { useDeleteRecord } from '@/modules/shared/lib/use-delete-record';
-import { Button } from '@/modules/shared/ui/button';
+import { Button, buttonVariants } from '@/modules/shared/ui/button';
 import { FormSection, FormSectionCount } from '@/modules/shared/ui/form-section';
 import { EmptyState } from '@/modules/shared/ui/empty-state';
 import { ConfirmDialog } from '@/modules/shared/ui/confirm-dialog';
@@ -17,22 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/modules/shared/ui/table';
-// Deep imports, not the barrel — see research-group-form-dialog.tsx's comment.
-import type { ResearchGroupSummary } from '../research-group.types';
+// Deep imports, not the barrel — see team-member-form-dialog.tsx's comment.
 import type { TeamMember } from '../team-member.types';
 import { TeamMemberFormDialog } from './team-member-form-dialog';
 
-// `groups` is only ever read for an id-to-name map and the form's select options, so it takes
-// summaries — the member rows nested inside a full `ResearchGroup` were never touched here.
-export function TeamMembersTable({
-  items,
-  groups,
-}: {
-  items: TeamMember[];
-  groups: ResearchGroupSummary[];
-}) {
-  const groupNameById = new Map(groups.map((group) => [group.id, group.name]));
-
+export function TeamMembersTable({ items }: { items: TeamMember[] }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TeamMember | undefined>(undefined);
 
@@ -42,7 +32,7 @@ export function TeamMembersTable({
     <div id="members" className="scroll-mt-24">
       <FormSection
         title="Team members"
-        description="Researchers and visiting professors. A member with no group is listed on its own."
+        description="Everyone on the public Team tab. Each member has a profile page with their CV and courses."
         badge={<FormSectionCount count={items.length} />}
         action={
           <Button
@@ -69,7 +59,6 @@ export function TeamMembersTable({
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Research group</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -85,16 +74,25 @@ export function TeamMembersTable({
                         size="sm"
                         className="size-8 ring-0"
                       />
-                      {item.name}
+                      <span className="min-w-0 break-words">{item.name}</span>
+                      {item.isDirector && (
+                        <span className="rounded-full border border-accent/40 px-2 py-0.5 text-xs font-medium text-accent">
+                          Director
+                        </span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{item.role}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {item.researchGroupId
-                      ? (groupNameById.get(item.researchGroupId) ?? 'None')
-                      : 'None'}
-                  </TableCell>
                   <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Link
+                        href={`/admin/team/${item.id}`}
+                        aria-label={`Edit profile: ${item.name}`}
+                        className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+                      >
+                        <IdCard className="size-4" aria-hidden="true" />
+                        Edit profile
+                      </Link>
                     <RowActions
                       editLabel={`Edit: ${item.name}`}
                       deleteLabel={`Delete: ${item.name}`}
@@ -104,6 +102,7 @@ export function TeamMembersTable({
                       }}
                       onDelete={() => remove.request(item)}
                     />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -116,13 +115,12 @@ export function TeamMembersTable({
         open={formOpen}
         onOpenChange={setFormOpen}
         member={editing}
-        groups={groups}
       />
 
       <ConfirmDialog
         {...remove.dialogProps}
-        title="Delete this item?"
-        description="This action cannot be undone."
+        title="Delete this member?"
+        description="Their profile, CV entries and courses are removed from the public site. This action cannot be undone."
       />
     </div>
   );

@@ -1,23 +1,36 @@
-import { PrismaResearchGroupRepository } from './research-group.repository';
-import { createResearchGroupService, type ResearchGroupService } from './research-group.service';
+import { getCourseService, getCvEntryService } from '@/modules/teaching';
 import { PrismaTeamMemberRepository } from './team-member.repository';
-import { createTeamMemberService, type TeamMemberService } from './team-member.service';
+import {
+  createTeamMemberService,
+  type MemberCvDirectory,
+  type TeamMemberService,
+} from './team-member.service';
 
-// Composition root: wires the Prisma-backed repositories into their services. Route handlers call
-// getResearchGroupService() / getTeamMemberService() and nothing else.
-let cachedGroup: ResearchGroupService | undefined;
-let cachedMember: TeamMemberService | undefined;
+// Composition root: wires the Prisma-backed repository and the teaching module's per-member reads
+// into the service. Route handlers and Server Components call getTeamMemberService() and nothing
+// else.
 
-export function getResearchGroupService(): ResearchGroupService {
-  if (!cachedGroup) {
-    cachedGroup = createResearchGroupService({ repository: new PrismaResearchGroupRepository() });
-  }
-  return cachedGroup;
-}
+const memberCv: MemberCvDirectory = {
+  async cvEntriesFor(teamMemberId) {
+    const result = await getCvEntryService().listForMember(teamMemberId);
+    if (!result.ok) throw result.error;
+    return result.data;
+  },
+  async coursesFor(teamMemberId) {
+    const result = await getCourseService().listForMember(teamMemberId);
+    if (!result.ok) throw result.error;
+    return result.data;
+  },
+};
+
+let cached: TeamMemberService | undefined;
 
 export function getTeamMemberService(): TeamMemberService {
-  if (!cachedMember) {
-    cachedMember = createTeamMemberService({ repository: new PrismaTeamMemberRepository() });
+  if (!cached) {
+    cached = createTeamMemberService({
+      repository: new PrismaTeamMemberRepository(),
+      cv: memberCv,
+    });
   }
-  return cachedMember;
+  return cached;
 }

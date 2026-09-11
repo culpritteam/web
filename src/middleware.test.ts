@@ -1,15 +1,5 @@
-import { NextRequest } from 'next/server';
 import { describe, expect, it } from 'vitest';
-import {
-  getClientIp,
-  rateLimitExceededResponse,
-  resolveRateLimitRule,
-  resolveTeamMembersCompatRedirect,
-} from './middleware';
-
-function makeRequest(url: string, init?: { method?: string }) {
-  return new NextRequest(url, init);
-}
+import { getClientIp, rateLimitExceededResponse, resolveRateLimitRule } from './middleware';
 
 // Pure-logic coverage only — the `middleware` export itself is a thin NextRequest/NextResponse
 // wrapper around these functions plus the shared rate limiter, not worth fighting the Next.js
@@ -72,44 +62,6 @@ describe('getClientIp', () => {
 
   it('falls back to "unknown" when neither header is present', () => {
     expect(getClientIp(new Headers())).toBe('unknown');
-  });
-});
-
-describe('resolveTeamMembersCompatRedirect', () => {
-  it('redirects old ?groupId= callers to the new filtered route (307), without touching the service', () => {
-    const res = resolveTeamMembersCompatRedirect(
-      makeRequest('https://example.com/api/team-members?groupId=group_1'),
-    );
-    expect(res?.status).toBe(307);
-    expect(res?.headers.get('location')).toBe('https://example.com/api/team-members/group/group_1');
-  });
-
-  it('URL-encodes a groupId containing special characters in the redirect target', () => {
-    const res = resolveTeamMembersCompatRedirect(
-      makeRequest('https://example.com/api/team-members?groupId=' + encodeURIComponent('grp/ 1')),
-    );
-    expect(res?.headers.get('location')).toBe(
-      'https://example.com/api/team-members/group/grp%2F%201',
-    );
-  });
-
-  it('is a no-op when there is no groupId param', () => {
-    expect(
-      resolveTeamMembersCompatRedirect(makeRequest('https://example.com/api/team-members')),
-    ).toBeNull();
-  });
-
-  it('is a no-op for non-GET methods or other paths', () => {
-    expect(
-      resolveTeamMembersCompatRedirect(
-        makeRequest('https://example.com/api/team-members?groupId=x', { method: 'POST' }),
-      ),
-    ).toBeNull();
-    expect(
-      resolveTeamMembersCompatRedirect(
-        makeRequest('https://example.com/api/team-members/group/x?groupId=y'),
-      ),
-    ).toBeNull();
   });
 });
 

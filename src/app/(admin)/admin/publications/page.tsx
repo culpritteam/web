@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getProfileCached, ProfileFieldsForm } from '@/modules/profile';
 import { getPublicationService, PublicationsTable } from '@/modules/publications';
+import { bylineSuggestions } from '@/modules/shared/ui/byline-field';
 import { getTeamMemberService } from '@/modules/research-groups';
 import { AdminScreen } from '../_components/admin-screen';
 
@@ -32,16 +33,7 @@ export default async function AdminPublicationsPage() {
       />
       <PublicationsTable
         items={result.ok ? result.data : []}
-        members={
-          membersResult.ok
-            ? membersResult.data.map(({ id, name, role }) => ({ id, name, role }))
-            : []
-        }
-        owner={
-          profileResult.ok && profileResult.data?.citationName
-            ? { citationName: profileResult.data.citationName }
-            : null
-        }
+        suggestions={membersResult.ok ? bylineSuggestions(membersResult.data) : []}
       />
     </AdminScreen>
   );

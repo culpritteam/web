@@ -27,20 +27,15 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
   };
 }
 
-/** Two members in one group, plus a third outside it, so group expansion has something to exclude. */
 const MEMBERS: TeamMemberSnapshot[] = [
   { id: 'tm_1', name: 'Ada Lovelace', role: 'PhD Candidate', photoUrl: null },
   { id: 'tm_2', name: 'Alan Turing', role: 'Research Fellow', photoUrl: null },
   { id: 'tm_3', name: 'Grace Hopper', role: 'Visiting Professor', photoUrl: null },
 ];
-const GROUPS: Record<string, string[]> = { grp_1: ['tm_1', 'tm_2'], grp_empty: [] };
 
 const directory: TeamMemberDirectory = {
   async byId(id) {
     return MEMBERS.find((member) => member.id === id) ?? null;
-  },
-  async byGroup(groupId) {
-    return MEMBERS.filter((member) => (GROUPS[groupId] ?? []).includes(member.id));
   },
 };
 
@@ -295,45 +290,6 @@ describe('event participants', () => {
       name: 'Visiting Speaker',
       role: 'Keynote',
     });
-  });
-
-  it('expands a research group into one row per member', async () => {
-    const { repository, service } = makeService();
-    repository.seed(makeEvent({ id: 'evt_9' }));
-
-    const result = await service.addGroupParticipants('evt_9', { researchGroupId: 'grp_1' }, 'a');
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.data.added.map((p) => p.name)).toEqual(['Ada Lovelace', 'Alan Turing']);
-    // Grace is in no group and must not be swept in.
-    expect(result.data.added.map((p) => p.teamMemberId)).not.toContain('tm_3');
-  });
-
-  it('skips members already on the event instead of failing the batch', async () => {
-    const { repository, service } = makeService();
-    repository.seed(makeEvent({ id: 'evt_9' }));
-    await service.addParticipant('evt_9', { kind: 'member', teamMemberId: 'tm_1' }, 'admin:1');
-
-    const result = await service.addGroupParticipants('evt_9', { researchGroupId: 'grp_1' }, 'a');
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.data.added.map((p) => p.name)).toEqual(['Alan Turing']);
-    expect(result.data.skipped).toBe(1);
-  });
-
-  it('rejects a group with no members rather than silently doing nothing', async () => {
-    const { repository, service } = makeService();
-    repository.seed(makeEvent({ id: 'evt_9' }));
-
-    const result = await service.addGroupParticipants(
-      'evt_9',
-      { researchGroupId: 'grp_empty' },
-      'a',
-    );
-
-    expect(result.ok).toBe(false);
   });
 
   it('rejects an unknown team member and an unknown event', async () => {

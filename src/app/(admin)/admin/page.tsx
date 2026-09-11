@@ -3,9 +3,9 @@ import Link from 'next/link';
 import { getProfileCached } from '@/modules/profile';
 import { getResearchService } from '@/modules/research';
 import { getPublicationService } from '@/modules/publications';
-import { getResearchGroupService, getTeamMemberService } from '@/modules/research-groups';
+import { getTeamMemberService } from '@/modules/research-groups';
 import { getEventService } from '@/modules/events';
-import { ABOUT_SECTIONS, getCourseService, getCvEntryService } from '@/modules/teaching';
+import { getCourseService, getCvEntryService } from '@/modules/teaching';
 import { unwrapOr } from '@/modules/shared/lib/result';
 import { INSTITUTION_TIME_ZONE } from '@/modules/shared/lib/timezone';
 import { PageHeading } from '@/modules/shared/ui/page-heading';
@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // The dashboard reports on what is actually published, using only fields the admin has already
-// entered — publication years, research areas, group membership, event dates, courses. Nothing here
+// entered — publication years, research areas, event dates, courses. Nothing here
 // is a vanity metric or an invented number; if the data isn't in the database, the panel isn't
 // rendered at all.
 //
@@ -27,8 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
 // carries the magnitude and colour carries nothing.
 //
 // Reads go through each module's service (a Server Component read, no client round trip). Every
-// number here is an aggregate computed in SQL — a `stats()` call per module, plus research groups
-// listed with a member count instead of their member rows. This page used to `list()` eight tables
+// number here is an aggregate computed in SQL — a `stats()` call per module. This page used to `list()` eight tables
 // in full and reduce them with `.length`, pulling every column of every row across the wire to
 // render nine numbers and three charts.
 //
@@ -36,12 +35,10 @@ export async function generateMetadata(): Promise<Metadata> {
 // filling the empty years between the populated ones, and relabelling grouped counts.
 
 /**
- * What a complete public About tab needs. Since ADR-012 this is two separate things: the profile's
- * own prose fields, and at least one entry in each CV list. They are counted together because the
- * visitor sees one page either way — but they are edited on two different screens now.
+ * What a complete lab identity needs: the fields the site header and the public About tab render.
+ * Member CVs are not counted — each is its own profile, and an empty list there is normal.
  */
-const PROFILE_FIELDS = ['photoUrl', 'bio', 'researchStatement', 'positionAffiliation'] as const;
-const ABOUT_TOTAL = PROFILE_FIELDS.length + ABOUT_SECTIONS.length;
+const LAB_FIELDS = ['labName', 'labTagline', 'logoUrl', 'positionAffiliation', 'labOverview'] as const;
 
 /**
  * Restores the empty years between the populated ones — a gap in output is itself information, and
@@ -63,12 +60,11 @@ function toYearSeries(byYear: readonly { year: number; count: number }[]): YearD
 }
 
 export default async function AdminDashboardPage() {
-  const [profileResult, research, publications, groups, teamMembers, events, courses, cvEntries] =
+  const [profileResult, research, publications, teamMembers, events, courses, cvEntries] =
     await Promise.all([
       getProfileCached(),
       getResearchService().stats(),
       getPublicationService().stats(),
-      getResearchGroupService().listWithMemberCounts(),
       getTeamMemberService().stats(),
       // No `now` argument: the upcoming boundary is evaluated at render time against the same
       // clock the public Events tab hands splitByTiming, so the two can never disagree.
@@ -81,8 +77,7 @@ export default async function AdminDashboardPage() {
   const profile = unwrapOr(profileResult, null);
   const researchStats = unwrapOr(research, { total: 0, byArea: [] });
   const publicationStats = unwrapOr(publications, { total: 0, byYear: [], latestYear: null });
-  const groupItems = unwrapOr(groups, []);
-  const memberStats = unwrapOr(teamMembers, { total: 0, ungrouped: 0 });
+  const memberStats = unwrapOr(teamMembers, { total: 0 });
   const eventStats = unwrapOr(events, { total: 0, upcoming: 0, nextEventDate: null });
   const courseStats = unwrapOr(courses, { total: 0 });
   const cvEntryStats = unwrapOr(cvEntries, { total: 0, sections: [] });
@@ -90,15 +85,7 @@ export default async function AdminDashboardPage() {
   const years = toYearSeries(publicationStats.byYear);
   const byArea = researchStats.byArea.map(({ area, count }) => ({ label: area, count }));
 
-  const byGroup = groupItems.map((group) => ({ label: group.name, count: group.memberCount }));
-  if (memberStats.ungrouped > 0) byGroup.push({ label: 'No group', count: memberStats.ungrouped });
-
-  const filledFields = profile
-    ? PROFILE_FIELDS.filter((field) => Boolean(profile[field])).length
-    : 0;
-  const populatedSections = new Set<string>(cvEntryStats.sections);
-  const filledSections =
-    filledFields + ABOUT_SECTIONS.filter((section) => populatedSections.has(section)).length;
+  const filledFields = profile ? LAB_FIELDS.filter((field) => Boolean(profile[field])).length : 0;
 
   const nextDate = eventStats.nextEventDate
     ? new Intl.DateTimeFormat('en', {
@@ -121,7 +108,7 @@ export default async function AdminDashboardPage() {
         <Figure href="/admin/research" label="Research" value={researchStats.total} />
         <Figure href="/admin/team" label="People" value={memberStats.total} />
         <Figure
-          href="/admin/teaching"
+          href="/admin/team"
           label="Courses"
           value={courseStats.total}
           note={cvEntryStats.total > 0 ? `${cvEntryStats.total} CV entries` : undefined}
@@ -147,17 +134,12 @@ export default async function AdminDashboardPage() {
           </Panel>
         )}
 
-        {byGroup.length > 0 && (
-          <Panel title="Group sizes">
-            <DistributionBars data={byGroup} />
-          </Panel>
-        )}
 
         <Panel
-          title="Profile completeness"
-          note={filledSections < ABOUT_TOTAL ? 'incomplete' : undefined}
+          title="Lab profile completeness"
+          note={filledFields < LAB_FIELDS.length ? 'incomplete' : undefined}
         >
-          <CompletenessMeter filled={filledSections} total={ABOUT_TOTAL} />
+          <CompletenessMeter filled={filledFields} total={LAB_FIELDS.length} />
         </Panel>
 
         {/* Every event is public now — there is no visibility flag to report on — so the useful

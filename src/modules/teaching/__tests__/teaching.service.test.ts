@@ -7,8 +7,8 @@ import {
 } from '../teaching.service';
 import type { CvEntryRepository } from '../cv-entry.repository';
 import type { CourseRepository } from '../course.repository';
-import { ABOUT_SECTIONS, TEACHING_SECTIONS } from '../teaching.types';
-import type { AuditContext, Course, CvEntry, CvSection } from '../teaching.types';
+import { ABOUT_SECTIONS } from '../teaching.types';
+import type { AuditContext, Course, CvEntry } from '../teaching.types';
 
 const SILENT_LOGGER = { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} };
 const NOW = new Date('2026-09-02T00:00:00Z');
@@ -16,6 +16,7 @@ const NOW = new Date('2026-09-02T00:00:00Z');
 function makeEntry(overrides: Partial<CvEntry> = {}): CvEntry {
   return {
     id: 'cv_1',
+    teamMemberId: 'mem_1',
     section: 'education',
     title: 'PhD in Computer Science',
     subtitle: null,
@@ -31,6 +32,7 @@ function makeEntry(overrides: Partial<CvEntry> = {}): CvEntry {
 function makeCourse(overrides: Partial<Course> = {}): Course {
   return {
     id: 'course_1',
+    teamMemberId: 'mem_1',
     code: null,
     title: 'Applied Cryptography',
     level: 'Graduate',
@@ -58,12 +60,8 @@ class FakeEntryRepository implements CvEntryRepository {
     return found ? { ...found } : null;
   }
 
-  async list() {
-    return [...this.store.values()];
-  }
-
-  async listBySections(sections: readonly CvSection[]) {
-    return [...this.store.values()].filter((e) => sections.includes(e.section));
+  async listForMember(teamMemberId: string) {
+    return [...this.store.values()].filter((e) => e.teamMemberId === teamMemberId);
   }
 
   // The reduction the dashboard used to run in memory: every entry fetched, then `.length` and a
@@ -110,8 +108,10 @@ class FakeCourseRepository implements CourseRepository {
     return found ? { ...found } : null;
   }
 
-  async list() {
-    return [...this.store.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+  async listForMember(teamMemberId: string) {
+    return [...this.store.values()]
+      .filter((c) => c.teamMemberId === teamMemberId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
   async stats() {
@@ -146,7 +146,10 @@ describe('cv entry service', () => {
     const repository = new FakeEntryRepository();
     const service = createCvEntryService({ repository, logger: SILENT_LOGGER });
 
-    const result = await service.create({ section: 'teaching_role', title: 'Lecturer' }, 'admin:1');
+    const result = await service.create(
+      { teamMemberId: 'mem_1', section: 'teaching_role', title: 'Lecturer' },
+      'admin:1',
+    );
 
     expect(result.ok).toBe(true);
     expect(repository.audits[0]).toMatchObject({ actor: 'admin:1', action: 'cv_entry.create' });
@@ -163,7 +166,7 @@ describe('cv entry service', () => {
     expect(repository.store.has('cv_9')).toBe(false);
     expect(repository.audits[0]).toMatchObject({
       action: 'cv_entry.delete',
-      metadata: { section: 'teaching_award', title: 'Teaching Prize' },
+      metadata: { teamMemberId: 'mem_1', section: 'teaching_award', title: 'Teaching Prize' },
     });
   });
 
@@ -177,13 +180,13 @@ describe('cv entry service', () => {
     expect((await service.remove('missing', 'admin:1')).ok).toBe(false);
   });
 
-  it('returns only the requested sections', async () => {
+  it("returns only the given member's entries", async () => {
     const repository = new FakeEntryRepository();
-    repository.seed(makeEntry({ id: 'a', section: 'education' }));
-    repository.seed(makeEntry({ id: 'b', section: 'teaching_role' }));
+    repository.seed(makeEntry({ id: 'a', teamMemberId: 'mem_1' }));
+    repository.seed(makeEntry({ id: 'b', teamMemberId: 'mem_2' }));
     const service = createCvEntryService({ repository, logger: SILENT_LOGGER });
 
-    const result = await service.listBySections(TEACHING_SECTIONS);
+    const result = await service.listForMember('mem_2');
 
     expect(result.ok && result.data.map((e) => e.id)).toEqual(['b']);
   });
@@ -204,7 +207,7 @@ describe('cv entry service', () => {
 
     // The completeness meter counts About sections that have at least one entry — the same
     // answer the dashboard used to get by scanning every row with `.some()`.
-    const entries = await repository.list();
+    const entries = await repository.listForMember('mem_1');
     const populated = new Set(result.data.sections);
     expect(ABOUT_SECTIONS.filter((section) => populated.has(section)).length).toBe(
       ABOUT_SECTIONS.filter((section) => entries.some((entry) => entry.section === section)).length,
@@ -218,12 +221,24 @@ describe('course service', () => {
     const service = createCourseService({ repository, logger: SILENT_LOGGER });
 
     const result = await service.create(
-      { title: 'Systems Security', level: 'Undergraduate' },
+      { teamMemberId: 'mem_1', title: 'Systems Security', level: 'Undergraduate' },
       'admin:1',
     );
 
     expect(result.ok).toBe(true);
     expect(repository.audits[0]).toMatchObject({ action: 'course.create' });
+  });
+
+  it("returns only the given member's courses, in sort order", async () => {
+    const repository = new FakeCourseRepository();
+    repository.seed(makeCourse({ id: 'b', teamMemberId: 'mem_1', sortOrder: 2 }));
+    repository.seed(makeCourse({ id: 'a', teamMemberId: 'mem_1', sortOrder: 1 }));
+    repository.seed(makeCourse({ id: 'x', teamMemberId: 'mem_2' }));
+    const service = createCourseService({ repository, logger: SILENT_LOGGER });
+
+    const result = await service.listForMember('mem_1');
+
+    expect(result.ok && result.data.map((c) => c.id)).toEqual(['a', 'b']);
   });
 
   it('refuses to delete an id that does not exist', async () => {

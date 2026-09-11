@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getProfileCached, ProfileFieldsForm } from '@/modules/profile';
 import { EventsTable, getEventService } from '@/modules/events';
-import { getResearchGroupService, getTeamMemberService } from '@/modules/research-groups';
+import { getTeamMemberService } from '@/modules/research-groups';
 import { AdminScreen } from '../_components/admin-screen';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -18,12 +18,11 @@ const PROFILE_SECTIONS = [
 ] as const;
 
 export default async function AdminEventsPage() {
-  // Members and groups are read here purely to populate the participants dialog's two pickers.
-  const [profileResult, result, membersResult, groupsResult] = await Promise.all([
+  // Members are read here purely to populate the participants dialog's picker.
+  const [profileResult, result, membersResult] = await Promise.all([
     getProfileCached(),
     getEventService().list(),
     getTeamMemberService().list(),
-    getResearchGroupService().listWithMemberCounts(),
   ]);
 
   return (
@@ -39,7 +38,6 @@ export default async function AdminEventsPage() {
             ? membersResult.data.map(({ id, name, role }) => ({ id, name, role }))
             : []
         }
-        groups={groupsResult.ok ? groupsResult.data.map(({ id, name }) => ({ id, name })) : []}
       />
     </AdminScreen>
   );
