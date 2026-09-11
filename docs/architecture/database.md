@@ -1,9 +1,9 @@
 ---
 status: current
 source_of_truth: false
-last_updated: 2026-09-06
+last_updated: 2026-09-11
 related_modules: [events, teaching, profile, research, publications, research-groups, auth]
-related_decisions: [ADR-001, ADR-004, ADR-010, ADR-015]
+related_decisions: [ADR-001, ADR-004, ADR-010, ADR-015, ADR-016]
 ---
 
 # Database
@@ -27,15 +27,15 @@ related_decisions: [ADR-001, ADR-004, ADR-010, ADR-015]
 
 | Model | Purpose | Notes |
 |---|---|---|
-| `Profile` | Singleton professor bio | Identity and prose only: name, title, photo, bio, position, research statement, `linkedinUrl`/`googleScholarUrl`, plus `citationName` — her byline form ("J. Jaimunk"), added 2026-09-06 ([ADR-015](../decisions/ADR-015-attribution-rows.md)). The seven `Json` list columns moved to `cv_entry` on 2026-09-02 ([ADR-012](../decisions/ADR-012-cv-entries-and-courses.md)). |
-| `CvEntry` | CV lines, tagged by `section` | One table with a `CvSection` discriminator, not seven — every section carries the same four fields. Five sections render on About, two on Teaching. |
-| `Course` | Taught courses | Backs the Teaching tab, grouped by free-text `level`. |
+| `Profile` | Singleton — the **lab's** profile | Since 2026-09-11 ([ADR-016](../decisions/ADR-016-lab-team-profiles.md)): `labName`, `labTagline`, `logoUrl`, `labOverview`, `positionAffiliation` (the lab's department), research statement, Calendly link and the per-tab intros. The professor's personal fields moved to her `TeamMember` row. |
+| `CvEntry` | CV lines, tagged by `section` | One table with a `CvSection` discriminator ([ADR-012](../decisions/ADR-012-cv-entries-and-courses.md)). Required `teamMemberId` (cascade) since ADR-016 — renders on that member's profile page. |
+| `Course` | Taught courses | Required `teamMemberId` (cascade) since ADR-016; grouped by free-text `level` on the member's profile page. |
 | `Research` | Research works | `link` nullable. Contributors are `ResearchContributor` rows, not a column. |
 | `Publication` | Publications | `link` nullable (conference/book-chapter entries often have no stable URL). The free-text `authors` column was **removed** 2026-09-06 ([ADR-015](../decisions/ADR-015-attribution-rows.md)) — replaced by `PublicationAuthor` rows. |
-| `PublicationAuthor` | Credited authors, in citation order | Join row: cascade from `Publication`, nullable `teamMemberId` (`onDelete: SetNull`), and a `name` snapshot that is what renders. `isProfileOwner` marks the professor's own row — she is the `Profile` singleton, not a `TeamMember` — which renders `Profile.citationName` live and always sorts first. At most one owner per publication, via a **partial unique index that Prisma cannot express**; it lives in the migration and shows as drift. |
-| `ResearchContributor` | Credited contributors | Same shape as `PublicationAuthor`; `sortOrder` is display order only, with no citation meaning. |
-| `ResearchGroup` | Research groups | Has-many `TeamMember`. `members` JSON blob was **removed** — replaced by the relational entity below. |
-| `TeamMember` | Researchers & visiting professors | `researchGroupId` nullable FK (`onDelete: SetNull`) — a member may be unaffiliated. `showOnTeamTab` (default true) is false for research co-authors that exist only so bylines can link to one record per person; the public Team tab filters on it. |
+| `PublicationAuthor` | Credited authors, in citation order | `{ name, sortOrder }` rows, cascading from `Publication`. `teamMemberId` and `isProfileOwner` were **removed** 2026-09-11 ([ADR-016](../decisions/ADR-016-lab-team-profiles.md)): a name that matches a member's `name` or `citationName` is highlighted at render time, nothing is stored. |
+| `ResearchContributor` | Credited contributors | Same shape as `PublicationAuthor`; `sortOrder` is display order only. |
+| ~~`ResearchGroup`~~ | ~~Research groups~~ | **Dropped 2026-09-11 (ADR-016)**, with every member outside "Culprit Web Development Team". |
+| `TeamMember` | Lab members, including the director | `isDirector` marks the director — at most one, via the **partial unique index** `team_member_one_director`, which Prisma cannot express (documented drift). Also `citationName`, `affiliation`, `linkedinUrl`, `googleScholarUrl`. Has-many `CvEntry` and `Course`. `nickname`, `showOnTeamTab` and `researchGroupId` were removed (ADR-016). |
 | `Event` | Admin-authored events on the public Events tab | See below. |
 | ~~`Appointment`~~ | ~~Admin-declared appointments~~ | **Deleted 2026-09-01 ([ADR-011](../decisions/ADR-011-events-replace-appointments.md)),** along with the `AppointmentStatus` enum and every row. Replaced by `Event`. |
 | ~~`Setting`~~ | ~~Key/value flags~~ | **Deleted 2026-08-13 (ADR-010).** Held one key, `upcoming_events_visible`. |
@@ -80,20 +80,18 @@ clears the gallery rather than reading as "no change".
 
 ```mermaid
 erDiagram
-    PROFILE ||--o{ RESEARCH : "has"
-    PROFILE ||--o{ PUBLICATION : "has"
-    PROFILE ||--o{ RESEARCHGROUP : "leads"
-    RESEARCHGROUP ||--o{ TEAMMEMBER : "has (optional)"
     PUBLICATION ||--o{ PUBLICATIONAUTHOR : "credited to"
     RESEARCH ||--o{ RESEARCHCONTRIBUTOR : "worked on by"
-    TEAMMEMBER |o--o{ PUBLICATIONAUTHOR : "soft link (optional)"
-    TEAMMEMBER |o--o{ RESEARCHCONTRIBUTOR : "soft link (optional)"
+    TEAMMEMBER ||--o{ CVENTRY : "has"
+    TEAMMEMBER ||--o{ COURSE : "teaches"
+    TEAMMEMBER |o--o{ EVENTPARTICIPANT : "soft link (optional)"
+    EVENT ||--o{ EVENTPARTICIPANT : "has"
     ADMIN ||--o{ EVENT : "publishes"
 ```
 
-Both attribution relationships are optional on both sides: an item with zero rows is the
-professor's own solo work, and a row with no `teamMemberId` is an outside collaborator who exists
-only as a name (2026-09-06, [ADR-015](../decisions/ADR-015-attribution-rows.md)).
+Bylines have no relation to members: an author row is a typed name, and the public lists highlight
+the names that match a member (2026-09-11, [ADR-016](../decisions/ADR-016-lab-team-profiles.md)).
+`Profile` is a standalone singleton for the lab.
 
 There is no `Setting` model (deleted 2026-08-13, ADR-010) and no `Appointment` model (deleted
 2026-09-01, ADR-011). Nothing gates event visibility: every event is public.

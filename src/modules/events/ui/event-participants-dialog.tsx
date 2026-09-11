@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Plus, Trash2, UserPlus, Users } from 'lucide-react';
+import { Plus, Trash2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { apiDelete, apiSend } from '@/modules/shared/lib/api-client';
@@ -16,8 +16,8 @@ import { Select } from '@/modules/shared/ui/select';
 // Deep imports, not the barrel — see event-form-dialog.tsx's comment.
 import type { Event } from '../event.types';
 
-// Admin: who took part in one event. Three ways in — an existing team member, a whole research
-// group at once, or a free-text guest — and one way out.
+// Admin: who took part in one event. Two ways in — an existing team member or a free-text guest —
+// and one way out.
 //
 // This is a separate dialog from the event form rather than another field on it. Participants are
 // their own rows behind their own endpoints, added and removed one at a time and taking effect
@@ -25,7 +25,6 @@ import type { Event } from '../event.types';
 // could add three people, hit Cancel, and reasonably expect them not to be there.
 
 export type ParticipantPerson = { id: string; name: string; role: string };
-export type ParticipantGroup = { id: string; name: string };
 
 type AddResult = { added: unknown[]; skipped: number };
 
@@ -46,17 +45,14 @@ export function EventParticipantsDialog({
   onOpenChange,
   event,
   members,
-  groups,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   event?: Event;
   members: ParticipantPerson[];
-  groups: ParticipantGroup[];
 }) {
   const router = useRouter();
   const [memberId, setMemberId] = useState('');
-  const [groupId, setGroupId] = useState('');
   const [guestName, setGuestName] = useState('');
   const [guestRole, setGuestRole] = useState('');
 
@@ -78,16 +74,6 @@ export function EventParticipantsDialog({
       refresh(describeAdd(result));
     },
     onError: () => toast.error('Could not add that person. Please try again.'),
-  });
-
-  const addGroup = useMutation({
-    mutationFn: (id: string) =>
-      post(`/api/admin/events/${event?.id}/participants/group`, { researchGroupId: id }),
-    onSuccess: (result) => {
-      setGroupId('');
-      refresh(describeAdd(result));
-    },
-    onError: () => toast.error('Could not add that team. Please try again.'),
   });
 
   const addGuest = useMutation({
@@ -112,7 +98,7 @@ export function EventParticipantsDialog({
     onError: () => toast.error('Could not remove. Please try again.'),
   });
 
-  const busy = addMember.isPending || addGroup.isPending || addGuest.isPending || remove.isPending;
+  const busy = addMember.isPending || addGuest.isPending || remove.isPending;
 
   return (
     <Dialog
@@ -153,39 +139,6 @@ export function EventParticipantsDialog({
               Add
             </Button>
           </div>
-        </section>
-
-        <section aria-labelledby="add-group-heading" className="flex flex-col gap-2">
-          <h3 id="add-group-heading" className="text-sm font-semibold text-foreground">
-            Add a whole team
-          </h3>
-          <div className="flex gap-2">
-            <Select
-              aria-label="Research group"
-              value={groupId}
-              onChange={(e) => setGroupId(e.target.value)}
-            >
-              <option value="">Choose a team…</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </Select>
-            <Button
-              variant="outline"
-              disabled={!groupId || busy}
-              loading={addGroup.isPending}
-              onClick={() => addGroup.mutate(groupId)}
-            >
-              <Users className="size-4" aria-hidden="true" />
-              Add all
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Adds everyone in that team as they are now. Changing the team later won&rsquo;t change
-            this event.
-          </p>
         </section>
 
         <section aria-labelledby="add-guest-heading" className="flex flex-col gap-3">

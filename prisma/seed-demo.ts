@@ -18,17 +18,29 @@ loadEnv();
 // fail authentication before a single query ran.
 const { prisma } = await import('../src/modules/shared/lib/prisma');
 
+// The lab's singleton (ADR-016). The director's own identity is a team member — DEMO_DIRECTOR.
 const DEMO_PROFILE = {
-  fullName: 'Dr. Amara Osei',
-  title: 'Professor of Information Security',
-  bio: 'Amara Osei studies how large systems fail under adversarial pressure, and how the people who operate them can be given better tools to notice when they are failing. Her group works across applied cryptography, systems security and the human factors that decide whether a defence actually holds in practice.',
-  positionAffiliation: 'Chair of Applied Security · Department of Computing, Northgate University',
+  labName: 'Northgate Applied Security Lab',
+  labTagline: 'Security that survives contact with production',
+  labOverview:
+    'We study how large systems fail under adversarial pressure, and how the people who operate them can be given better tools to notice when they are failing — across applied cryptography, systems security and the human factors that decide whether a defence actually holds in practice.',
+  positionAffiliation: 'Department of Computing, Northgate University',
   researchStatement:
     'Security properties that hold only on paper are not security properties. My research programme is built on measuring real deployments — protocol implementations, key-management workflows, incident-response practice — and feeding what breaks there back into designs that survive contact with production.',
 };
 
-// CV entries. One flat list with a `section` on each row — the shape the `cv_entry` table stores,
-// rather than seven separate arrays hanging off the profile (ADR-012). `sortOrder` is per section.
+const DEMO_DIRECTOR = {
+  name: 'Dr. Amara Osei',
+  citationName: 'A. Osei',
+  role: 'Professor of Information Security',
+  affiliation: 'Chair of Applied Security · Department of Computing, Northgate University',
+  bio: 'Amara Osei studies how large systems fail under adversarial pressure, and how the people who operate them can be given better tools to notice when they are failing.',
+  isDirector: true,
+  sortOrder: -1,
+};
+
+// The director's CV entries. One flat list with a `section` on each row — the shape the `cv_entry`
+// table stores (ADR-012). `sortOrder` is per section. `teamMemberId` is added at insert time.
 const DEMO_CV_ENTRIES = [
   {
     section: 'education',
@@ -207,9 +219,8 @@ const DEMO_RESEARCH = [
     summary:
       'A reproducible-build toolchain that lets an operator prove a deployed binary corresponds to reviewed source, with attestations that survive vendor handover.',
     area: 'Systems Security',
-    // Two of these four carry contributors and two deliberately carry none. The empty ones are the
-    // demo of "the professor's own solo work renders no byline" — the case most likely to regress
-    // without anyone noticing.
+    // Two of these four carry contributors and two deliberately carry none, so "no byline" is
+    // exercised too — the case most likely to regress without anyone noticing.
     contributors: ['Rasmus Lindqvist', 'Tobias Meyer'],
     sortOrder: 1,
   },
@@ -277,85 +288,41 @@ const DEMO_PUBLICATIONS = [
   },
 ];
 
-const DEMO_GROUPS = [
+// Lab members. Their citation names match the demo bylines ("R. Lindqvist"), so the public lists
+// have highlighted names to render alongside grey outside authors (N. Haddad, J. Park).
+const DEMO_MEMBERS = [
   {
-    name: 'Applied Cryptography Lab',
-    description:
-      'Protocol design, implementation review and the long tail of key-management practice in deployed systems.',
-    members: [
-      {
-        name: 'Nadia Haddad',
-        role: 'Senior Researcher',
-        bio: 'Works on key escrow and revocation in federated deployments.',
-        sortOrder: 1,
-      },
-      {
-        name: 'Tobias Meyer',
-        role: 'PhD Candidate',
-        bio: 'Studying formal verification of TLS implementations.',
-        sortOrder: 2,
-      },
-      {
-        name: 'Yuki Tanaka',
-        role: 'PhD Candidate',
-        bio: 'Post-quantum migration paths for long-lived signing keys.',
-        sortOrder: 3,
-      },
-    ],
+    name: 'Rasmus Lindqvist',
+    citationName: 'R. Lindqvist',
+    role: 'Postdoctoral Researcher',
+    bio: 'Builds attestation tooling for air-gapped deployments.',
+    sortOrder: 1,
   },
   {
-    name: 'Secure Systems Group',
-    description:
-      'Isolation, supply-chain integrity and reproducible builds for infrastructure that cannot be taken offline.',
-    members: [
-      {
-        name: 'Rasmus Lindqvist',
-        role: 'Postdoctoral Researcher',
-        bio: 'Builds attestation tooling for air-gapped deployments.',
-        sortOrder: 1,
-      },
-      {
-        name: 'Chidi Nwosu',
-        role: 'PhD Candidate',
-        bio: 'Container escape analysis in multi-tenant clusters.',
-        sortOrder: 2,
-      },
-    ],
+    name: 'Tobias Meyer',
+    citationName: 'T. Meyer',
+    role: 'PhD Candidate',
+    bio: 'Studying formal verification of TLS implementations.',
+    sortOrder: 2,
   },
   {
-    name: 'Security & Human Factors Unit',
-    description:
-      'Empirical study of how developers and operators make security decisions, and what tooling changes those decisions.',
-    members: [
-      {
-        name: 'Sophie Whitcombe',
-        role: 'Senior Researcher',
-        bio: 'Field studies of incident-response teams under time pressure.',
-        sortOrder: 1,
-      },
-      {
-        name: 'Jae-won Park',
-        role: 'Research Assistant',
-        bio: 'Instrumentation and analysis for large-scale warning studies.',
-        sortOrder: 2,
-      },
-    ],
+    name: 'Sophie Whitcombe',
+    citationName: 'S. Whitcombe',
+    role: 'Senior Researcher',
+    bio: 'Field studies of incident-response teams under time pressure.',
+    sortOrder: 3,
   },
-];
-
-/** No research group — exercises the Team Members tab's ungrouped section. */
-const DEMO_UNGROUPED_MEMBERS = [
+  {
+    name: 'Yuki Tanaka',
+    role: 'PhD Candidate',
+    bio: 'Post-quantum migration paths for long-lived signing keys.',
+    sortOrder: 4,
+  },
   {
     name: 'Prof. Elena Vasquez',
     role: 'Visiting Professor',
     bio: 'On sabbatical from the Institute for Secure Systems, Aalborg.',
-    sortOrder: 1,
-  },
-  {
-    name: 'Dr. Marcus Bell',
-    role: 'Industry Fellow',
-    bio: 'Splits time between the department and a national CERT.',
-    sortOrder: 2,
+    sortOrder: 5,
   },
 ];
 
@@ -377,51 +344,26 @@ async function seed() {
   }
   console.log('profile: seeded');
 
-  if ((await prisma.cvEntry.count()) === 0) {
-    await prisma.cvEntry.createMany({ data: [...DEMO_CV_ENTRIES] });
-    console.log(`cv entries: ${DEMO_CV_ENTRIES.length} created`);
-  } else {
-    console.log('cv entries: rows already present — skipped');
-  }
-
-  if ((await prisma.course.count()) === 0) {
-    await prisma.course.createMany({ data: DEMO_COURSES });
-    console.log(`courses: ${DEMO_COURSES.length} created`);
-  } else {
-    console.log('courses: rows already present — skipped');
-  }
-
-  if ((await prisma.researchGroup.count()) === 0) {
-    for (const { members, ...group } of DEMO_GROUPS) {
-      await prisma.researchGroup.create({
-        data: { ...group, teamMembers: { create: members } },
-      });
-    }
-    await prisma.teamMember.createMany({ data: DEMO_UNGROUPED_MEMBERS });
-    const grouped = DEMO_GROUPS.reduce((n, g) => n + g.members.length, 0);
+  if ((await prisma.teamMember.count()) === 0) {
+    const director = await prisma.teamMember.create({ data: DEMO_DIRECTOR });
+    await prisma.teamMember.createMany({ data: DEMO_MEMBERS });
+    // CV entries and courses belong to a member; in the demo they are all the director's.
+    await prisma.cvEntry.createMany({
+      data: DEMO_CV_ENTRIES.map((entry) => ({ ...entry, teamMemberId: director.id })),
+    });
+    await prisma.course.createMany({
+      data: DEMO_COURSES.map((course) => ({ ...course, teamMemberId: director.id })),
+    });
     console.log(
-      `research groups: ${DEMO_GROUPS.length} created, ${grouped} grouped + ${DEMO_UNGROUPED_MEMBERS.length} ungrouped members`,
+      `team: director + ${DEMO_MEMBERS.length} members, ${DEMO_CV_ENTRIES.length} CV entries, ${DEMO_COURSES.length} courses created`,
     );
   } else {
-    console.log('research groups: rows already present — skipped');
+    console.log('team: rows already present — skipped (CV entries and courses too)');
   }
 
-  // Research and publications are seeded AFTER the team, so their credited names can be matched
-  // back to real member rows. Without at least one linked row nothing in the demo data exercises
-  // the `teamMemberId` path — not the picker's already-credited filter, and not the SetNull that
-  // keeps a byline intact when a member is deleted.
-  //
-  // Matched on surname because the demo bylines are written the way a citation is ("R. Lindqvist")
-  // while the team rows hold full names ("Rasmus Lindqvist"). A name that matches nobody stays
-  // unlinked, which is exactly right for an outside co-author.
-  const seededMembers = await prisma.teamMember.findMany({ select: { id: true, name: true } });
-  const memberIdBySurname = new Map(
-    seededMembers.map((member) => [member.name.split(' ').at(-1)?.toLowerCase(), member.id]),
-  );
-  const linkOf = (name: string) =>
-    memberIdBySurname.get(name.split(' ').at(-1)?.toLowerCase()) ?? null;
-  const toRows = (names: string[]) =>
-    names.map((name, sortOrder) => ({ name, teamMemberId: linkOf(name), sortOrder }));
+  // Bylines are plain names (ADR-016). Whether a name is a lab member is decided when the page
+  // renders, by matching it against members' names and citation names.
+  const toRows = (names: string[]) => names.map((name, sortOrder) => ({ name, sortOrder }));
 
   if ((await prisma.research.count()) === 0) {
     for (const { contributors, ...work } of DEMO_RESEARCH) {
@@ -457,19 +399,17 @@ async function seed() {
         {
           title: 'Guest lecture: post-quantum key rotation in practice',
           description:
-            'A walkthrough of what migrating a live key hierarchy to post-quantum primitives actually costs, using tooling built with the Applied Cryptography Lab.',
+            'A walkthrough of what migrating a live key hierarchy to post-quantum primitives actually costs.',
           eventDate: daysFromNow(16, 11),
         },
         {
           title: 'Workshop — reproducible build attestations',
-          description:
-            'Hands-on session on attesting builds end to end, run with the Secure Systems Group. Bring a laptop.',
+          description: 'Hands-on session on attesting builds end to end. Bring a laptop.',
           eventDate: daysFromNow(9, 14),
         },
         {
           title: 'Departmental seminar: warning comprehension in banking apps',
-          description:
-            'Results from a joint study with the Security & Human Factors Unit on whether anyone reads the warnings we ship.',
+          description: 'Results from a study on whether anyone reads the warnings we ship.',
           eventDate: daysFromNow(4, 10),
         },
         {
@@ -510,16 +450,9 @@ async function undo() {
   const cvEntries = await prisma.cvEntry.deleteMany({
     where: { title: { in: DEMO_CV_ENTRIES.map((e) => e.title) } },
   });
+  // CV entries and courses also cascade with their member.
   const members = await prisma.teamMember.deleteMany({
-    where: {
-      OR: [
-        { researchGroup: { name: { in: DEMO_GROUPS.map((g) => g.name) } } },
-        { name: { in: DEMO_UNGROUPED_MEMBERS.map((m) => m.name) } },
-      ],
-    },
-  });
-  const groups = await prisma.researchGroup.deleteMany({
-    where: { name: { in: DEMO_GROUPS.map((g) => g.name) } },
+    where: { name: { in: [DEMO_DIRECTOR.name, ...DEMO_MEMBERS.map((m) => m.name)] } },
   });
   const publications = await prisma.publication.deleteMany({
     where: { title: { in: DEMO_PUBLICATIONS.map((p) => p.title) } },
@@ -529,7 +462,7 @@ async function undo() {
   });
 
   console.log(
-    `undo: ${research.count} research, ${publications.count} publications, ${groups.count} groups, ` +
+    `undo: ${research.count} research, ${publications.count} publications, ` +
       `${members.count} team members, ${events.count} events, ${courses.count} courses, ` +
       `${cvEntries.count} CV entries removed. ` +
       'Authorship rows cascade from their publication/research, so they need no delete of their own. ' +

@@ -17,19 +17,16 @@ import {
   TableRow,
 } from '@/modules/shared/ui/table';
 // Deep import, not the barrel — see publication-form-dialog.tsx's comment.
-import type { BylinePerson } from '@/modules/shared/ui/byline-field';
 import type { Publication } from '../publication.types';
 import { PublicationFormDialog } from './publication-form-dialog';
 
 export function PublicationsTable({
   items,
-  members = [],
-  owner,
+  suggestions = [],
 }: {
   items: Publication[];
-  /** Everyone creditable, for the author picker. Defaults to none so the table renders alone. */
-  members?: BylinePerson[];
-  owner?: { citationName: string } | null;
+  /** Lab member names offered in the byline field. Defaults to none so the table renders alone. */
+  suggestions?: readonly string[];
 }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Publication | undefined>(undefined);
@@ -113,8 +110,7 @@ export function PublicationsTable({
         open={formOpen}
         onOpenChange={setFormOpen}
         publication={editing}
-        members={members}
-        owner={owner}
+        suggestions={suggestions}
       />
 
       <ConfirmDialog

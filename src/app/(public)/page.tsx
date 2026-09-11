@@ -1,84 +1,61 @@
 import type { Metadata } from 'next';
-import { getProfileCached, ProfileLinks } from '@/modules/profile';
-import {
-  ABOUT_SECTIONS,
-  CV_SECTION_LABELS,
-  CvEntryList,
-  getCvEntryService,
-  groupBySection,
-} from '@/modules/teaching';
-import { cvSectionAnchorId } from '@/modules/teaching/ui/cv-entry-list';
+import { getProfileCached } from '@/modules/profile';
+import { getTeamMemberService, TeamMemberCard } from '@/modules/research-groups';
 import { EmptyState } from '@/modules/shared/ui/empty-state';
 import { PageHeading } from '@/modules/shared/ui/page-heading';
-import { SectionNav, type SectionNavItem } from '@/modules/shared/ui/section-nav';
+import { toMetaDescription } from './_lib/page-meta';
 
-const FALLBACK_DESCRIPTION = 'Position, education, fellowships, scholarships, and invited talks.';
+const FALLBACK_DESCRIPTION = 'About the lab, its work, and its director.';
 
 export async function generateMetadata(): Promise<Metadata> {
+  const result = await getProfileCached();
   return {
     title: 'About',
-    description: FALLBACK_DESCRIPTION,
+    description: toMetaDescription(
+      result.ok ? result.data?.labOverview : null,
+      FALLBACK_DESCRIPTION,
+    ),
   };
 }
 
 export default async function AboutPage() {
-  // Two reads: the singleton profile (request-scoped, shared with the layout's site header) and
-  // the five CV lists this tab renders. Teaching roles and awards are deliberately absent — they
-  // live on /teaching now (ADR-012).
-  const [result, entriesResult] = await Promise.all([
+  // The lab overview plus a card for the director (ADR-016). Her CV lives on her own profile page,
+  // which the card links to. The member list is a handful of rows, ordered director-first.
+  const [profileResult, membersResult] = await Promise.all([
     getProfileCached(),
-    getCvEntryService().listBySections(ABOUT_SECTIONS),
+    getTeamMemberService().list(),
   ]);
 
-  const entryGroups = groupBySection(entriesResult.ok ? entriesResult.data : [], ABOUT_SECTIONS);
-
-  const profile = result.ok ? result.data : null;
-
-  // The jump list mirrors what is actually on the page: the biography block, then whichever CV
-  // lists have entries. `groupBySection` has already dropped the empty ones, so a section can
-  // never be advertised and then not be there to land on.
-  const sections: SectionNavItem[] = [
-    ...(profile?.bio ? [{ id: 'biography', label: 'Biography' }] : []),
-    ...entryGroups.map((group) => ({
-      id: cvSectionAnchorId(group.section),
-      label: CV_SECTION_LABELS[group.section],
-    })),
-  ];
+  const overview = profileResult.ok ? profileResult.data?.labOverview : null;
+  const director = membersResult.ok
+    ? membersResult.data.find((member) => member.isDirector)
+    : undefined;
 
   return (
     <div>
       <PageHeading title="About" />
 
-      {!profile ? (
-        <EmptyState title="Profile not available" className="mt-10" />
+      {!overview && !director ? (
+        <EmptyState title="Nothing here yet" className="mt-10" />
       ) : (
-        <div className="mt-12 space-y-10">
-          <SectionNav items={sections} />
-
-          {/* The lead paragraph, set in the reading serif one step up from body size. It is the
-              first prose on the site and the thing most visitors actually came for, so it is
-              given the weight of a standfirst rather than the grey of secondary copy.
-              The external-profile links ride inside the same anchor target: they are two lines of
-              "where else to find this person", not a destination worth its own jump-list entry. */}
-          {(profile.bio || profile.linkedinUrl || profile.googleScholarUrl) && (
-            <section id="biography" aria-label="Biography" className="space-y-10">
-              {profile.bio && (
-                <p className="rise max-w-[62ch] text-pretty break-words font-serif text-lg leading-[1.75] text-foreground sm:text-xl">
-                  {profile.bio}
-                </p>
-              )}
-
-              <ProfileLinks profile={profile} />
-            </section>
+        <div className="mt-12 space-y-12">
+          {overview && (
+            <p className="rise max-w-[62ch] whitespace-pre-line text-pretty break-words font-serif text-lg leading-[1.75] text-foreground sm:text-xl">
+              {overview}
+            </p>
           )}
 
-          {/* Single column, matching the Teaching tab. A two-column flow used to run here, but
-              multi-column breaks the section nav's scroll-spy: it picks the last section whose top
-              has passed the active line, and in two columns the right-hand sections start back at
-              the container's top, so every one of them crosses that line at once and the strip
-              jumps straight to the final entry. One column keeps section tops monotonic down the
-              page, which is the ordering both the reader and the spy assume. */}
-          <CvEntryList groups={entryGroups} />
+          {director && (
+            <section aria-labelledby="about-director" className="max-w-md">
+              <h3
+                id="about-director"
+                className="mb-4 font-mono text-xs uppercase tracking-[0.12em] text-muted-foreground"
+              >
+                Lab director
+              </h3>
+              <TeamMemberCard member={director} />
+            </section>
+          )}
         </div>
       )}
     </div>

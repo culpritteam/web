@@ -20,11 +20,16 @@ import {
 import type { Course } from '../teaching.types';
 import { CourseFormDialog } from './course-form-dialog';
 
-// The courses section of the admin Teaching screen. A section rather than a whole screen: the
-// screen it sits on mirrors one public tab, and that tab also carries the teaching intro and the
-// two teaching CV lists.
+// The courses section of a member's admin profile page, next to that member's CV lists.
 
-export function CoursesAdmin({ courses }: { courses: Course[] }) {
+export function CoursesAdmin({
+  teamMemberId,
+  courses,
+}: {
+  /** The member who teaches these courses. */
+  teamMemberId: string;
+  courses: Course[];
+}) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Course | undefined>(undefined);
 
@@ -34,7 +39,7 @@ export function CoursesAdmin({ courses }: { courses: Course[] }) {
     <div id="courses" className="scroll-mt-24">
       <FormSection
         title="Courses"
-        description="Shown on the public Teaching tab, grouped by level."
+        description="Shown on the member's public profile, grouped by level."
         badge={<FormSectionCount count={courses.length} />}
         action={
           <Button
@@ -53,7 +58,7 @@ export function CoursesAdmin({ courses }: { courses: Course[] }) {
           <EmptyState
             icon={BookOpen}
             title="No courses yet."
-            description="Add the first course to show it on the public Teaching tab."
+            description="Add the first course to show it on the public profile."
           />
         ) : (
           <Table>
@@ -110,12 +115,14 @@ export function CoursesAdmin({ courses }: { courses: Course[] }) {
         )}
       </FormSection>
 
-      <CourseFormDialog open={formOpen} onOpenChange={setFormOpen} course={editing} />
+      <CourseFormDialog
+        teamMemberId={teamMemberId}
+        open={formOpen} onOpenChange={setFormOpen} course={editing} />
 
       <ConfirmDialog
         {...remove.dialogProps}
         title="Delete this course?"
-        description="It is removed from the public Teaching tab. This action cannot be undone."
+        description="It is removed from the public profile. This action cannot be undone."
       />
     </div>
   );

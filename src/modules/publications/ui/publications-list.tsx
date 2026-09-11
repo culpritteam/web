@@ -1,4 +1,5 @@
 import { ArrowUpRight } from 'lucide-react';
+import { BylineNames, type BylineMember } from '@/modules/research-groups';
 import type { Publication } from '@/modules/publications';
 
 // Grouped by year, newest first — the convention every academic profile uses (Google Scholar, and
@@ -24,15 +25,11 @@ function groupByYear(items: Publication[]): { year: number; items: Publication[]
 
 export function PublicationsList({
   items,
-  citationName,
+  members = [],
 }: {
   items: Publication[];
-  /**
-   * `Profile.citationName`, rendered in place of the stored snapshot on the professor's own rows.
-   * Live rather than snapshotted on purpose: it is her own name, she controls it, and editing it
-   * once should re-credit every paper rather than leave 42 rows disagreeing.
-   */
-  citationName?: string | null;
+  /** Lab members, so a byline name that matches one links to their profile. */
+  members?: readonly BylineMember[];
 }) {
   const groups = groupByYear(items);
 
@@ -64,14 +61,13 @@ export function PublicationsList({
                   {item.title}
                 </h4>
                 {/* Nothing at all when there are no authors — an unattributed entry is the
-                    professor's own work, and an empty byline line would read as missing data. */}
+                    lab's own work, and an empty byline line would read as missing data. */}
                 {item.authors.length > 0 && (
                   <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">
-                    {item.authors
-                      .map((author) =>
-                        author.isProfileOwner && citationName ? citationName : author.name,
-                      )
-                      .join(', ')}
+                    <BylineNames
+                      names={item.authors.map((author) => author.name)}
+                      members={members}
+                    />
                   </p>
                 )}
                 <p className="mt-1 font-serif text-sm italic text-muted-foreground">{item.venue}</p>

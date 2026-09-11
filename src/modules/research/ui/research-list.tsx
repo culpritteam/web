@@ -1,4 +1,5 @@
 import { ArrowUpRight } from 'lucide-react';
+import { BylineNames, type BylineMember } from '@/modules/research-groups';
 import type { Research } from '@/modules/research';
 
 // Grouped by area. Every well-structured faculty and lab site organises research thematically
@@ -22,11 +23,11 @@ function groupByArea(items: Research[]): { area: string; items: Research[] }[] {
 
 export function ResearchList({
   items,
-  citationName,
+  members = [],
 }: {
   items: Research[];
-  /** `Profile.citationName` — see the note in publications-list.tsx. */
-  citationName?: string | null;
+  /** Lab members, see the note in publications-list.tsx. */
+  members?: readonly BylineMember[];
 }) {
   const groups = groupByArea(items);
 
@@ -62,13 +63,10 @@ export function ResearchList({
                 {item.contributors.length > 0 && (
                   <p className="mt-2 text-sm text-muted-foreground">
                     With{' '}
-                    {item.contributors
-                      .map((contributor) =>
-                        contributor.isProfileOwner && citationName
-                          ? citationName
-                          : contributor.name,
-                      )
-                      .join(', ')}
+                    <BylineNames
+                      names={item.contributors.map((contributor) => contributor.name)}
+                      members={members}
+                    />
                   </p>
                 )}
 

@@ -3,12 +3,7 @@ import { attempt, type Result } from '@/modules/shared/lib/result';
 import { logger as defaultLogger, type Logger } from '@/modules/shared/lib/logger';
 import type { EventRepository, NewParticipant } from './event.repository';
 import type { Event, EventParticipant, EventStats } from './event.types';
-import type {
-  AddGroupParticipantsInput,
-  AddParticipantInput,
-  CreateEventInput,
-  UpdateEventInput,
-} from './event.schema';
+import type { AddParticipantInput, CreateEventInput, UpdateEventInput } from './event.schema';
 
 // Business layer for Events. An event is plain published content: no status, no lifecycle, no
 // approval step, no per-row visibility flag — so unlike the Appointment service it replaced, there
@@ -34,7 +29,6 @@ export type TeamMemberSnapshot = {
  */
 export interface TeamMemberDirectory {
   byId(id: string): Promise<TeamMemberSnapshot | null>;
-  byGroup(researchGroupId: string): Promise<TeamMemberSnapshot[]>;
 }
 
 export type EventServiceDeps = {
@@ -66,17 +60,6 @@ export interface EventService {
   addParticipant(
     eventId: string,
     input: AddParticipantInput,
-    actor: string,
-  ): Promise<Result<AddParticipantsResult>>;
-
-  /**
-   * Add every member of a research group, expanded to one row per member at this moment. Members
-   * already on the event are skipped rather than erroring, so re-running it after the group grows
-   * adds only the newcomers.
-   */
-  addGroupParticipants(
-    eventId: string,
-    input: AddGroupParticipantsInput,
     actor: string,
   ): Promise<Result<AddParticipantsResult>>;
 
@@ -185,31 +168,6 @@ export function createEventService(deps: EventServiceDeps): EventService {
         });
         log.info('event_participant_added', { eventId, actor, added: added.length });
         return { added, skipped: 1 - added.length };
-      }),
-
-    addGroupParticipants: (eventId, input, actor) =>
-      attempt(async () => {
-        await requireExisting(eventId);
-
-        const members = await teamMembers.byGroup(input.researchGroupId);
-        if (members.length === 0) {
-          throw new NotFoundError('That research group has no members to add.');
-        }
-
-        // Expanded to individual rows here, deliberately: the event records the people who were
-        // added at this moment, never a live pointer at the group. Editing the group afterwards
-        // leaves this event alone.
-        const added = await repository.addParticipantsWithAudit({
-          eventId,
-          participants: members.map(snapshotOf),
-          audit: {
-            actor,
-            action: 'event.participant.add_group',
-            metadata: { researchGroupId: input.researchGroupId },
-          },
-        });
-        log.info('event_group_added', { eventId, actor, added: added.length });
-        return { added, skipped: members.length - added.length };
       }),
 
     removeParticipant: (eventId, participantId, actor) =>

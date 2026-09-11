@@ -11,7 +11,7 @@ import type {
   UpdateCvEntryInput,
 } from './teaching.schema';
 
-// Business layer for the About and Teaching tabs. Courses and CV entries are plain published
+// Business layer for the CV and Teaching sections of a team member's profile page. Courses and CV entries are plain published
 // content — no status, no lifecycle, nothing that can return 409 — so the services are thin:
 // existence checks, audit context, structured logging, errors on the Result channel.
 
@@ -21,10 +21,10 @@ export type CvEntryServiceDeps = {
 };
 
 export interface CvEntryService {
-  list(): Promise<Result<CvEntry[]>>;
+  /** One member's entries, every section, ordered by section then the admin's arrangement. */
+  listForMember(teamMemberId: string): Promise<Result<CvEntry[]>>;
   /** Headline counts for the dashboard, aggregated in SQL. */
   stats(): Promise<Result<CvEntryStats>>;
-  listBySections(sections: readonly CvSection[]): Promise<Result<CvEntry[]>>;
   create(input: CreateCvEntryInput, actor: string): Promise<Result<CvEntry>>;
   update(id: string, input: UpdateCvEntryInput, actor: string): Promise<Result<CvEntry>>;
   /** Returns the removed record (pre-delete snapshot) for confirmation. */
@@ -42,9 +42,7 @@ export function createCvEntryService(deps: CvEntryServiceDeps): CvEntryService {
   }
 
   return {
-    list: () => attempt(() => repository.list()),
-
-    listBySections: (sections) => attempt(() => repository.listBySections(sections)),
+    listForMember: (teamMemberId) => attempt(() => repository.listForMember(teamMemberId)),
 
     stats: () => attempt(() => repository.stats()),
 
@@ -54,7 +52,12 @@ export function createCvEntryService(deps: CvEntryServiceDeps): CvEntryService {
           data: input,
           audit: { actor, action: 'cv_entry.create' },
         });
-        log.info('cv_entry_created', { id: created.id, section: created.section, actor });
+        log.info('cv_entry_created', {
+          id: created.id,
+          teamMemberId: created.teamMemberId,
+          section: created.section,
+          actor,
+        });
         return created;
       }),
 
@@ -81,6 +84,7 @@ export function createCvEntryService(deps: CvEntryServiceDeps): CvEntryService {
             actor,
             action: 'cv_entry.delete',
             metadata: {
+              teamMemberId: existing.teamMemberId,
               section: existing.section,
               title: existing.title,
               subtitle: existing.subtitle,
@@ -101,7 +105,8 @@ export type CourseServiceDeps = {
 };
 
 export interface CourseService {
-  list(): Promise<Result<Course[]>>;
+  /** One member's courses, in the admin's arrangement. */
+  listForMember(teamMemberId: string): Promise<Result<Course[]>>;
   /** Headline counts for the dashboard, aggregated in SQL. */
   stats(): Promise<Result<CourseStats>>;
   create(input: CreateCourseInput, actor: string): Promise<Result<Course>>;
@@ -120,7 +125,7 @@ export function createCourseService(deps: CourseServiceDeps): CourseService {
   }
 
   return {
-    list: () => attempt(() => repository.list()),
+    listForMember: (teamMemberId) => attempt(() => repository.listForMember(teamMemberId)),
 
     stats: () => attempt(() => repository.stats()),
 
@@ -155,6 +160,7 @@ export function createCourseService(deps: CourseServiceDeps): CourseService {
             actor,
             action: 'course.delete',
             metadata: {
+              teamMemberId: existing.teamMemberId,
               code: existing.code,
               title: existing.title,
               level: existing.level,

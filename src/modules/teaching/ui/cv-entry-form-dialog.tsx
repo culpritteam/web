@@ -20,17 +20,25 @@ import { createCvEntrySchema, type CreateCvEntryInput } from '../teaching.schema
 type CvEntryFormInput = z.input<typeof createCvEntrySchema>;
 
 function submitEntry(id: string | undefined, input: CreateCvEntryInput) {
+  // The owner is fixed at creation; the update schema has no `teamMemberId`, and an undefined key
+  // is dropped from the JSON body.
   return id
-    ? apiSend<CvEntry>('PUT', `/api/admin/teaching/entries/${id}`, input)
+    ? apiSend<CvEntry>('PUT', `/api/admin/teaching/entries/${id}`, {
+        ...input,
+        teamMemberId: undefined,
+      })
     : apiSend<CvEntry>('POST', '/api/admin/teaching/entries', input);
 }
 
 export function CvEntryFormDialog({
+  teamMemberId,
   open,
   onOpenChange,
   entry,
   defaultSection,
 }: {
+  /** The member whose profile this entry belongs to. */
+  teamMemberId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Present for edit; absent for create. */
@@ -49,6 +57,7 @@ export function CvEntryFormDialog({
   } = useForm<CvEntryFormInput, unknown, CreateCvEntryInput>({
     resolver: zodResolver(createCvEntrySchema),
     values: {
+      teamMemberId,
       section: entry?.section ?? defaultSection ?? 'education',
       title: entry?.title ?? '',
       subtitle: entry?.subtitle ?? '',
@@ -89,9 +98,7 @@ export function CvEntryFormDialog({
           label="List"
           htmlFor="cv-section"
           required
-          // Says out loud which public tab the choice sends the entry to — the one thing about
-          // this form that isn't obvious from the field itself.
-          description="Which list this belongs to. The first five show on About; teaching roles and awards show on Teaching."
+          description="Which list on the member's profile this belongs to."
           error={errors.section?.message}
         >
           {(fieldProps) => (

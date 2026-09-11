@@ -4,10 +4,10 @@ import { patchProfileSchema, updateProfileSchema } from '../profile.schema';
 describe('updateProfileSchema', () => {
   it('parses a full valid profile', () => {
     const result = updateProfileSchema.safeParse({
-      fullName: 'Dr. Cavallaro',
-      title: 'Professor of Information Security',
-      photoUrl: 'https://example.com/photo.jpg',
-      bio: 'Short overview.',
+      labName: 'The Culprit of Privacy Technologies',
+      labTagline: 'Privacy engineering research',
+      logoUrl: 'https://example.com/logo.png',
+      labOverview: 'Short overview.',
       positionAffiliation: 'Professor, University College London',
       education: [{ title: 'PhD, Computer Science', subtitle: 'MIT', year: '2010' }],
       researchInterests: [{ title: 'Malware analysis' }],
@@ -19,39 +19,51 @@ describe('updateProfileSchema', () => {
 
   it('strips HTML from free-text fields', () => {
     const result = updateProfileSchema.safeParse({
-      fullName: 'Dr. <b>Cavallaro</b>',
-      title: 'Professor',
-      bio: '<script>alert(1)</script>Bio text',
+      labName: 'The <b>Culprit</b>',
+      labOverview: '<script>alert(1)</script>Bio text',
     });
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.data.fullName).toBe('Dr. Cavallaro');
-    expect(result.data.bio).toBe('alert(1)Bio text');
+    expect(result.data.labName).toBe('The Culprit');
+    expect(result.data.labOverview).toBe('alert(1)Bio text');
   });
 
-  it('requires fullName and title', () => {
-    const result = updateProfileSchema.safeParse({ bio: 'x' });
+  it('requires labName, and only labName', () => {
+    const result = updateProfileSchema.safeParse({ labOverview: 'x' });
     expect(result.success).toBe(false);
     if (result.success) return;
     const fieldErrors = result.error.flatten().fieldErrors;
-    expect(fieldErrors.fullName).toBeDefined();
-    expect(fieldErrors.title).toBeDefined();
+    expect(fieldErrors.labName).toBeDefined();
+    expect(updateProfileSchema.safeParse({ labName: 'Lab' }).success).toBe(true);
   });
 
-  it('rejects a non-URL photoUrl', () => {
+  it("drops the professor's personal fields, which moved to her team-member row", () => {
     const result = updateProfileSchema.safeParse({
-      fullName: 'Dr. Cavallaro',
-      title: 'Professor',
-      photoUrl: 'not-a-url',
+      labName: 'Lab',
+      fullName: 'Dr. X',
+      citationName: 'X.',
+      linkedinUrl: 'https://example.com',
+      teachingIntro: 'Old',
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    for (const key of ['fullName', 'citationName', 'linkedinUrl', 'teachingIntro']) {
+      expect(result.data).not.toHaveProperty(key);
+    }
+  });
+
+  it('rejects a non-URL logoUrl', () => {
+    const result = updateProfileSchema.safeParse({
+      labName: 'Lab',
+      logoUrl: 'not-a-url',
     });
     expect(result.success).toBe(false);
   });
 
-  it('allows photoUrl to be explicitly null (clear the photo)', () => {
+  it('allows logoUrl to be explicitly null (clear the logo)', () => {
     const result = updateProfileSchema.safeParse({
-      fullName: 'Dr. Cavallaro',
-      title: 'Professor',
-      photoUrl: null,
+      labName: 'Lab',
+      logoUrl: null,
     });
     expect(result.success).toBe(true);
   });
@@ -61,8 +73,7 @@ describe('updateProfileSchema', () => {
   // `teaching.schema.test.ts` instead.
   it('ignores CV list fields, which are no longer part of the profile document', () => {
     const result = updateProfileSchema.safeParse({
-      fullName: 'Dr. Cavallaro',
-      title: 'Professor',
+      labName: 'Lab',
       education: [{ subtitle: 'MIT' }],
     });
 
@@ -73,15 +84,15 @@ describe('updateProfileSchema', () => {
 
 describe('patchProfileSchema', () => {
   it('accepts a single-field patch and carries only that key', () => {
-    const result = patchProfileSchema.safeParse({ teachingIntro: 'Courses I teach.' });
+    const result = patchProfileSchema.safeParse({ teamIntro: 'Our team.' });
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(Object.keys(result.data)).toEqual(['teachingIntro']);
-    expect(result.data.teachingIntro).toBe('Courses I teach.');
+    expect(Object.keys(result.data)).toEqual(['teamIntro']);
+    expect(result.data.teamIntro).toBe('Our team.');
   });
 
-  it('does not require fullName/title, which the whole-document PUT does', () => {
-    expect(patchProfileSchema.safeParse({ bio: 'Just the bio.' }).success).toBe(true);
+  it('does not require labName, which the whole-document PUT does', () => {
+    expect(patchProfileSchema.safeParse({ labOverview: 'Just the overview.' }).success).toBe(true);
   });
 
   it('rejects an empty patch rather than accepting a silent no-op', () => {
@@ -104,7 +115,6 @@ describe('patchProfileSchema', () => {
   it('strips HTML from every intro field', () => {
     const result = patchProfileSchema.safeParse({
       publicationsIntro: '<script>alert(1)</script>Selected work',
-      teachingIntro: '<b>Teaching</b>',
       teamIntro: '<i>Team</i>',
       eventsIntro: '<em>Events</em>',
       appointmentIntro: '<p>Book a slot</p>',
@@ -112,7 +122,6 @@ describe('patchProfileSchema', () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.publicationsIntro).toBe('alert(1)Selected work');
-    expect(result.data.teachingIntro).toBe('Teaching');
     expect(result.data.teamIntro).toBe('Team');
     expect(result.data.eventsIntro).toBe('Events');
     expect(result.data.appointmentIntro).toBe('Book a slot');

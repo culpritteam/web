@@ -84,13 +84,3 @@ export const addParticipantSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 export type AddParticipantInput = z.infer<typeof addParticipantSchema>;
-
-/**
- * Admin: add every member of a research group at once. The group is expanded server-side into one
- * row per member — the event stores people, never a live reference to the group, so editing the
- * group later cannot retroactively change who attended.
- */
-export const addGroupParticipantsSchema = z.object({
-  researchGroupId: entityId,
-});
-export type AddGroupParticipantsInput = z.infer<typeof addGroupParticipantsSchema>;

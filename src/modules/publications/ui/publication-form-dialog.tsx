@@ -10,7 +10,7 @@ import { apiSend } from '@/modules/shared/lib/api-client';
 import { Dialog, DialogFooter } from '@/modules/shared/ui/dialog';
 import { Button } from '@/modules/shared/ui/button';
 import { Input } from '@/modules/shared/ui/input';
-import { BylineField, type BylinePerson } from '@/modules/shared/ui/byline-field';
+import { BylineField } from '@/modules/shared/ui/byline-field';
 import { FormField } from '@/modules/shared/ui/form-field';
 // Deep, module-internal imports — see the equivalent comment in research-form-dialog.tsx (the
 // barrel also re-exports the Prisma-backed `getPublicationService`; even a type-only barrel
@@ -30,16 +30,13 @@ export function PublicationFormDialog({
   open,
   onOpenChange,
   publication,
-  members,
-  owner,
+  suggestions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   publication?: Publication;
-  /** Everyone who can be credited. Passed down from the server page — this dialog reads nothing. */
-  members: BylinePerson[];
-  /** How the professor is credited on her own work, from `Profile.citationName`. */
-  owner?: { citationName: string } | null;
+  /** Lab member names offered while typing a byline. Passed down from the server page. */
+  suggestions: readonly string[];
 }) {
   const router = useRouter();
   const isEdit = Boolean(publication);
@@ -57,11 +54,7 @@ export function PublicationFormDialog({
       // Only the two fields that get sent back — id and sortOrder are the repository's business,
       // and sortOrder is re-derived from this array's own order on save.
       authors:
-        publication?.authors.map(({ teamMemberId, name, isProfileOwner }) => ({
-          teamMemberId,
-          name,
-          isProfileOwner,
-        })) ?? [],
+        publication?.authors.map(({ name }) => ({ name })) ?? [],
       venue: publication?.venue ?? '',
       year: publication?.year ?? new Date().getFullYear(),
       link: publication?.link ?? '',
@@ -107,9 +100,7 @@ export function PublicationFormDialog({
               error={errors.authors?.message ?? errors.authors?.root?.message}
               value={field.value ?? []}
               onChange={field.onChange}
-              members={members}
-              owner={owner}
-              externalLabel="Add an outside co-author"
+              suggestions={suggestions}
               emptyHint="No authors listed — this will show as your own work."
             />
           )}

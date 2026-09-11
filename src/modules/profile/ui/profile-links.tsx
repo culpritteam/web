@@ -1,31 +1,30 @@
 import { ArrowUpRight } from 'lucide-react';
-import type { Profile } from '@/modules/profile';
 
-// External academic/professional profiles. Rendered as a compact row directly under the bio,
-// where a reader looking for "where else can I find this person" expects it — above the CV
-// sections rather than buried at the foot of them. Renders nothing when no link is set, so the
-// About tab has no empty scaffolding before the admin fills it in.
+// External academic/professional profiles for a person — since ADR-016, a team member. Rendered as
+// a compact row under the bio, and nothing at all when no link is set.
+
+export type ProfileLinkFields = {
+  linkedinUrl?: string | null;
+  googleScholarUrl?: string | null;
+};
 
 const LINKS = [
-  { field: 'linkedinUrl', key: 'linkedin', label: 'LinkedIn' },
-  { field: 'googleScholarUrl', key: 'googleScholar', label: 'Google Scholar' },
-] as const satisfies readonly { field: keyof Profile; key: string; label: string }[];
+  { field: 'linkedinUrl', label: 'LinkedIn' },
+  { field: 'googleScholarUrl', label: 'Google Scholar' },
+] as const satisfies readonly { field: keyof ProfileLinkFields; label: string }[];
 
-export function ProfileLinks({ profile }: { profile: Profile }) {
-  const present = LINKS.flatMap(({ field, key, label }) => {
-    const href = profile[field] as string | null;
-    return href ? [{ key, href, label }] : [];
+export function ProfileLinks({ links }: { links: ProfileLinkFields }) {
+  const present = LINKS.flatMap(({ field, label }) => {
+    const href = links[field];
+    return href ? [{ field, href, label }] : [];
   });
 
   if (present.length === 0) return null;
 
   return (
-    // Plain text links, not pill-shaped chips — the chip is stock-component shorthand for "tag",
-    // and these are two outbound links. No rules of its own either: this row sits immediately
-    // above a `border-t` section, so bounding it produced two horizontal lines a few pixels apart.
     <ul className="flex flex-wrap items-center gap-x-7 gap-y-2">
-      {present.map(({ key, href, label }) => (
-        <li key={key}>
+      {present.map(({ field, href, label }) => (
+        <li key={field}>
           <a
             href={href}
             target="_blank"

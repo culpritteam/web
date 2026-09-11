@@ -7,12 +7,10 @@ export {
   createEventSchema,
   updateEventSchema,
   addParticipantSchema,
-  addGroupParticipantsSchema,
   participantIdSchema,
   type CreateEventInput,
   type UpdateEventInput,
   type AddParticipantInput,
-  type AddGroupParticipantsInput,
 } from './event.schema';
 
 export type { Event, EventParticipant, EventTiming, EventStats, AuditContext } from './event.types';

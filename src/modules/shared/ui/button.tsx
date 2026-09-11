@@ -15,7 +15,7 @@ import { cn } from '@/modules/shared/lib/utils';
 // The transition list names `scale`, not `transform`: Tailwind v4 compiles `scale-*` to the
 // standalone `scale` property (verified in the built stylesheet — `.active\:scale-\[0\.98\]`
 // emits `scale: 0.98`), so a `transform` entry would match nothing and the press would snap.
-const buttonVariants = cva(
+export const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm text-sm font-medium tracking-tight transition-[background-color,border-color,color,scale] duration-300 ease-[var(--ease-out-expo)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
   {
     variants: {

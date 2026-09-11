@@ -25,16 +25,24 @@ import { createCourseSchema, type CreateCourseInput } from '../teaching.schema';
 type CourseFormInput = z.input<typeof createCourseSchema>;
 
 function submitCourse(id: string | undefined, input: CreateCourseInput) {
+  // The owner is fixed at creation; the update schema has no `teamMemberId`, and an undefined key
+  // is dropped from the JSON body.
   return id
-    ? apiSend<Course>('PUT', `/api/admin/teaching/courses/${id}`, input)
+    ? apiSend<Course>('PUT', `/api/admin/teaching/courses/${id}`, {
+        ...input,
+        teamMemberId: undefined,
+      })
     : apiSend<Course>('POST', '/api/admin/teaching/courses', input);
 }
 
 export function CourseFormDialog({
+  teamMemberId,
   open,
   onOpenChange,
   course,
 }: {
+  /** The member who teaches this course. */
+  teamMemberId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Present for edit; absent for create. */
@@ -51,6 +59,7 @@ export function CourseFormDialog({
   } = useForm<CourseFormInput, unknown, CreateCourseInput>({
     resolver: zodResolver(createCourseSchema),
     values: {
+      teamMemberId,
       code: course?.code ?? '',
       title: course?.title ?? '',
       level: course?.level ?? '',

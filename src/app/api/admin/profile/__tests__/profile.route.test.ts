@@ -32,21 +32,18 @@ function asAdmin() {
 
 const PROFILE = {
   id: 'profile_1',
-  fullName: 'Dr. Cavallaro',
-  title: 'Professor',
-  photoUrl: null,
-  bio: null,
+  labName: 'The Culprit of Privacy Technologies',
+  labTagline: null,
+  logoUrl: null,
+  labOverview: null,
   positionAffiliation: null,
   researchStatement: null,
-  linkedinUrl: null,
-  googleScholarUrl: null,
   calendlyUrl: null,
   publicationsIntro: null,
-  teachingIntro: 'Courses I teach.',
-  teamIntro: null,
+  teamIntro: 'Our team.',
   eventsIntro: null,
   appointmentIntro: null,
-  updatedAt: new Date('2026-09-02T00:00:00Z'),
+  updatedAt: new Date('2026-09-11T00:00:00Z'),
 };
 
 describe('PATCH /api/admin/profile', () => {
@@ -54,7 +51,7 @@ describe('PATCH /api/admin/profile', () => {
     const { UnauthorizedError } = await import('@/modules/shared/lib/errors');
     requireAdmin.mockResolvedValueOnce({ ok: false, error: new UnauthorizedError() });
 
-    const res = await PATCH(makeRequest('PATCH', { teachingIntro: 'x' }));
+    const res = await PATCH(makeRequest('PATCH', { teamIntro: 'x' }));
     expect(res.status).toBe(401);
     expect(patchProfile).not.toHaveBeenCalled();
   });
@@ -66,6 +63,13 @@ describe('PATCH /api/admin/profile', () => {
     const json = await res.json();
     expect(json.ok).toBe(false);
     expect(json.error.code).toBe('validation_error');
+    expect(patchProfile).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for a patch that only carries removed personal fields', async () => {
+    asAdmin();
+    const res = await PATCH(makeRequest('PATCH', { fullName: 'Dr. X', teachingIntro: 'x' }));
+    expect(res.status).toBe(400);
     expect(patchProfile).not.toHaveBeenCalled();
   });
 
@@ -83,28 +87,34 @@ describe('PATCH /api/admin/profile', () => {
     const { ok } = await import('@/modules/shared/lib/result');
     patchProfile.mockResolvedValueOnce(ok(PROFILE));
 
-    const res = await PATCH(makeRequest('PATCH', { teachingIntro: 'Courses I teach.' }));
+    const res = await PATCH(makeRequest('PATCH', { teamIntro: 'Our team.' }));
 
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.ok).toBe(true);
-    expect(json.data.teachingIntro).toBe('Courses I teach.');
-    expect(patchProfile).toHaveBeenCalledWith({ teachingIntro: 'Courses I teach.' }, 'admin:u1');
+    expect(json.data.teamIntro).toBe('Our team.');
+    expect(patchProfile).toHaveBeenCalledWith({ teamIntro: 'Our team.' }, 'admin:u1');
   });
 });
 
 describe('PUT /api/admin/profile', () => {
-  it('still accepts the whole document (backward compatible)', async () => {
+  it('accepts the whole lab document', async () => {
     asAdmin();
     const { ok } = await import('@/modules/shared/lib/result');
     updateProfile.mockResolvedValueOnce(ok(PROFILE));
 
-    const res = await PUT(makeRequest('PUT', { fullName: 'Dr. Cavallaro', title: 'Professor' }));
+    const res = await PUT(makeRequest('PUT', { labName: 'The Culprit of Privacy Technologies' }));
 
     expect(res.status).toBe(200);
     expect(updateProfile).toHaveBeenCalledWith(
-      { fullName: 'Dr. Cavallaro', title: 'Professor' },
+      { labName: 'The Culprit of Privacy Technologies' },
       'admin:u1',
     );
+  });
+
+  it('returns 400 when labName is missing', async () => {
+    asAdmin();
+    const res = await PUT(makeRequest('PUT', { labTagline: 'x' }));
+    expect(res.status).toBe(400);
   });
 });

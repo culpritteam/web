@@ -3,14 +3,11 @@ import { render, screen } from '@testing-library/react';
 import { ResearchList } from '../ui/research-list';
 import type { Research } from '../research.types';
 
-// See the note in publications-list.test.tsx — an empty contributor list means solo work and must
-// render nothing, not an empty line.
+// See the note in publications-list.test.tsx.
 
 const contributor = (name: string, sortOrder: number) => ({
   id: `c${sortOrder}`,
-  teamMemberId: null,
   name,
-  isProfileOwner: false,
   sortOrder,
 });
 
@@ -37,37 +34,31 @@ describe('ResearchList', () => {
       />,
     );
 
-    expect(screen.getByText('With R. Lindqvist, T. Meyer')).toBeInTheDocument();
+    expect(screen.getByText(/^With/)).toHaveTextContent('With R. Lindqvist, T. Meyer');
   });
 
-  it('renders the live citation name on the professor own row, not the stored snapshot', () => {
+  it('links a member matched by name and leaves outside contributors grey', () => {
     render(
       <ResearchList
-        citationName="J. Jaimunk"
+        members={[{ id: 'm2', name: 'Kai Tanaka', citationName: null }]}
         items={[
           research({
-            contributors: [
-              {
-                id: 'c0',
-                teamMemberId: null,
-                name: 'STALE NAME',
-                isProfileOwner: true,
-                sortOrder: 0,
-              },
-              contributor('M. Fernandez', 1),
-            ],
+            contributors: [contributor('Kai Tanaka', 0), contributor('M. Fernandez', 1)],
           }),
         ]}
       />,
     );
 
-    expect(screen.getByText('With J. Jaimunk, M. Fernandez')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Kai Tanaka' })).toHaveAttribute('href', '/team/m2');
+    const outside = screen.getByText('M. Fernandez');
+    expect(outside.closest('a')).toBeNull();
+    expect(outside).toHaveClass('text-muted-foreground');
   });
 
   it('renders no contributor line at all when nobody is credited', () => {
     render(<ResearchList items={[research({ contributors: [] })]} />);
 
     expect(screen.getByText('Adversarial Malware Sandboxing')).toBeInTheDocument();
-    expect(screen.queryByText(/^With /)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^With/)).not.toBeInTheDocument();
   });
 });

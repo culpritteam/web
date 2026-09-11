@@ -59,9 +59,9 @@ describe('createPublicationSchema', () => {
     if (result.success) expect(result.data.title).toBe('Evasive Malware');
   });
 
-  // Attribution is rows, not a column, so "the professor's own solo work" is an EMPTY list — not a
-  // null, not a placeholder name. If this ever stops parsing, every solo publication breaks.
-  it('accepts an empty author list, which means solo work', () => {
+  // An empty list is valid and renders no byline. If this ever stops parsing, every publication
+  // saved without authors breaks.
+  it('accepts an empty author list', () => {
     const result = createPublicationSchema.safeParse({
       title: 'X',
       venue: 'Z',
@@ -72,59 +72,33 @@ describe('createPublicationSchema', () => {
     if (result.success) expect(result.data.authors).toEqual([]);
   });
 
-  it('accepts linked team members and outside co-authors in one list', () => {
+  it('keeps only the name of each author, dropping the removed link fields', () => {
     const result = createPublicationSchema.safeParse({
       title: 'X',
-      authors: [
-        { teamMemberId: 'tm_1', name: 'R. Lindqvist' },
-        { teamMemberId: null, name: 'T. Meyer' },
-      ],
+      authors: [{ name: 'J. Jaimunk', teamMemberId: 'tm_1', isProfileOwner: true }],
       venue: 'Z',
       year: 2024,
-      link: 'https://example.com',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.authors).toEqual([{ name: 'J. Jaimunk' }]);
+  });
+
+  it('allows the same name twice — two authors can share a name', () => {
+    const result = createPublicationSchema.safeParse({
+      title: 'X',
+      authors: [{ name: 'J. Park' }, { name: 'J. Park' }],
+      venue: 'Z',
+      year: 2024,
     });
     expect(result.success).toBe(true);
   });
 
-  // Caught here rather than left to the composite unique index, which would surface as a database
-  // constraint error the admin cannot read.
-  it('rejects the same team member credited twice', () => {
+  it('rejects more than 50 authors', () => {
     const result = createPublicationSchema.safeParse({
       title: 'X',
-      authors: [
-        { teamMemberId: 'tm_1', name: 'R. Lindqvist' },
-        { teamMemberId: 'tm_1', name: 'R. Lindqvist' },
-      ],
+      authors: Array.from({ length: 51 }, (_, i) => ({ name: `A${i}` })),
       venue: 'Z',
       year: 2024,
-      link: 'https://example.com',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('allows two unlinked authors, who are distinct people with no id to collide', () => {
-    const result = createPublicationSchema.safeParse({
-      title: 'X',
-      authors: [{ name: 'A. One' }, { name: 'B. Two' }],
-      venue: 'Z',
-      year: 2024,
-      link: 'https://example.com',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  // Mirrors the partial unique index on publication_author. She is one person; two owner rows on
-  // one paper is a data error the admin should see as a sentence, not a constraint violation.
-  it('rejects the professor being credited twice on one publication', () => {
-    const result = createPublicationSchema.safeParse({
-      title: 'X',
-      authors: [
-        { name: 'J. Jaimunk', isProfileOwner: true },
-        { name: 'J. Jaimunk', isProfileOwner: true },
-      ],
-      venue: 'Z',
-      year: 2024,
-      link: 'https://example.com',
     });
     expect(result.success).toBe(false);
   });

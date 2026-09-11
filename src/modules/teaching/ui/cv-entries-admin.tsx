@@ -20,14 +20,7 @@ import {
 import { CV_SECTION_LABELS, type CvEntry, type CvSection } from '../teaching.types';
 import { CvEntryFormDialog } from './cv-entry-form-dialog';
 
-// One CV list per admin section, on whichever admin screen mirrors the public tab that renders it:
-// education/fellowship/scholarship/invited_talk on About, research_interest on Research,
-// teaching_role/teaching_award on Teaching.
-//
-// Previously all seven lists sat in a single table on /admin/teaching with a "List" column, which
-// meant editing the About tab's education list happened on a screen called Teaching. The section
-// is now the heading rather than a column value, so where an entry lives is the same question as
-// where you are standing.
+// One CV list per section of a member's profile, all on that member's admin page.
 //
 // The dialog and the delete confirmation are mounted once for the whole screen rather than once
 // per section: they are singletons driven by which row was clicked, and N copies of a focus-
@@ -50,23 +43,25 @@ const CV_SECTION_ITEM_LABELS: Record<CvSection, string> = {
 
 /** What each list is for, said once where the admin is about to add to it. */
 const CV_SECTION_DESCRIPTIONS: Record<CvSection, string> = {
-  education: 'Degrees and qualifications, shown on the public About tab.',
-  fellowship: 'Fellowships and visiting appointments, shown on the public About tab.',
-  scholarship: 'Scholarships and travel awards, shown on the public About tab.',
-  research_interest: 'The topics listed under the research statement on the public Research tab.',
-  invited_talk: 'Keynotes and invited talks, shown on the public About tab.',
-  teaching_role: 'Lecturing and supervision roles, shown on the public Teaching tab.',
-  teaching_award: 'Teaching prizes and commendations, shown on the public Teaching tab.',
+  education: 'Degrees and qualifications.',
+  fellowship: 'Fellowships and visiting appointments.',
+  scholarship: 'Scholarships and travel awards.',
+  research_interest: 'The topics this member works on.',
+  invited_talk: 'Keynotes and invited talks.',
+  teaching_role: 'Lecturing and supervision roles.',
+  teaching_award: 'Teaching prizes and commendations.',
 };
 
 export interface CvEntriesAdminProps {
-  /** The lists this screen owns, in the order the matching public tab renders them. */
+  /** The member whose profile these lists belong to. */
+  teamMemberId: string;
+  /** The lists to edit, in the order the public profile renders them. */
   sections: readonly CvSection[];
   /** Every entry for those sections. Filtering happens here so the page stays a single query. */
   entries: CvEntry[];
 }
 
-export function CvEntriesAdmin({ sections, entries }: CvEntriesAdminProps) {
+export function CvEntriesAdmin({ teamMemberId, sections, entries }: CvEntriesAdminProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<CvEntry | undefined>(undefined);
   const [defaultSection, setDefaultSection] = useState<CvSection | undefined>(undefined);
@@ -110,7 +105,7 @@ export function CvEntriesAdmin({ sections, entries }: CvEntriesAdminProps) {
                 <EmptyState
                   icon={GraduationCap}
                   title={`No ${CV_SECTION_LABELS[section].toLowerCase()} yet.`}
-                  description={`Add the first ${itemLabel} to show this list on the public site.`}
+                  description={`Add the first ${itemLabel} to show this list on the public profile.`}
                 />
               ) : (
                 <Table>
@@ -162,6 +157,7 @@ export function CvEntriesAdmin({ sections, entries }: CvEntriesAdminProps) {
       })}
 
       <CvEntryFormDialog
+        teamMemberId={teamMemberId}
         open={formOpen}
         onOpenChange={setFormOpen}
         entry={editing}

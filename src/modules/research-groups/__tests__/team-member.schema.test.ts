@@ -1,27 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createTeamMemberSchema,
-  teamMemberGroupIdSchema,
-  updateTeamMemberSchema,
-} from '../team-member.schema';
+import { createTeamMemberSchema, updateTeamMemberSchema } from '../team-member.schema';
 
 describe('createTeamMemberSchema', () => {
-  it('parses a valid team member without a group', () => {
-    const result = createTeamMemberSchema.safeParse({
-      name: 'Jane Doe',
-      role: 'PhD Candidate',
-    });
+  it('parses a minimal team member', () => {
+    const result = createTeamMemberSchema.safeParse({ name: 'Jane Doe', role: 'PhD Candidate' });
     expect(result.success).toBe(true);
-    if (result.success) expect(result.data.researchGroupId).toBeUndefined();
+    if (result.success) expect(result.data.isDirector).toBeUndefined();
   });
 
-  it('parses a valid team member with a group', () => {
+  it('parses a full profile', () => {
     const result = createTeamMemberSchema.safeParse({
-      name: 'Jane Doe',
-      role: 'Visiting Professor',
-      bio: 'Works on network security.',
+      name: 'Jenjira Jaimunk, PhD.',
+      citationName: 'J. Jaimunk',
+      role: 'Assistant Professor',
+      affiliation: 'Department of Computer Engineering, Chiang Mai University',
+      bio: 'Works on privacy by design.',
       photoUrl: 'https://example.com/jane.jpg',
-      researchGroupId: 'group_1',
+      linkedinUrl: 'https://www.linkedin.com/in/example',
+      googleScholarUrl: 'https://scholar.google.com/citations?user=x',
+      isDirector: true,
       sortOrder: 3,
     });
     expect(result.success).toBe(true);
@@ -36,24 +33,42 @@ describe('createTeamMemberSchema', () => {
     expect(fieldErrors.role).toBeDefined();
   });
 
-  it('allows researchGroupId to be explicitly null (detach from group)', () => {
-    const result = updateTeamMemberSchema.safeParse({ researchGroupId: null });
-    expect(result.success).toBe(true);
-  });
-});
-
-describe('teamMemberGroupIdSchema', () => {
-  it('accepts a non-empty groupId', () => {
-    const result = teamMemberGroupIdSchema.safeParse('group_1');
-    expect(result.success).toBe(true);
-    if (result.success) expect(result.data).toBe('group_1');
+  it('rejects a javascript: link', () => {
+    expect(
+      createTeamMemberSchema.safeParse({
+        name: 'X',
+        role: 'Y',
+        linkedinUrl: 'javascript:alert(1)',
+      }).success,
+    ).toBe(false);
   });
 
-  it('rejects an empty groupId', () => {
-    expect(teamMemberGroupIdSchema.safeParse('').success).toBe(false);
+  it('turns a blank citation name and link into null so the column is cleared', () => {
+    const parsed = updateTeamMemberSchema.parse({ citationName: '', googleScholarUrl: '' });
+    expect(parsed.citationName).toBeNull();
+    expect(parsed.googleScholarUrl).toBeNull();
   });
 
-  it('rejects a groupId over 200 characters', () => {
-    expect(teamMemberGroupIdSchema.safeParse('g'.repeat(201)).success).toBe(false);
+  it('strips HTML from free text', () => {
+    const parsed = createTeamMemberSchema.parse({
+      name: '<b>Jane</b>',
+      role: 'PhD',
+      affiliation: '<i>Lab</i>',
+    });
+    expect(parsed.name).toBe('Jane');
+    expect(parsed.affiliation).toBe('Lab');
+  });
+
+  it('drops the removed fields as unknown keys', () => {
+    const parsed = createTeamMemberSchema.parse({
+      name: 'Jane',
+      role: 'PhD',
+      nickname: 'J',
+      showOnTeamTab: false,
+      researchGroupId: 'grp_1',
+    });
+    expect(parsed).not.toHaveProperty('nickname');
+    expect(parsed).not.toHaveProperty('showOnTeamTab');
+    expect(parsed).not.toHaveProperty('researchGroupId');
   });
 });

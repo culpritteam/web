@@ -30,18 +30,14 @@ export interface ProfileRepository {
  * only needed for atomic ops like `{ increment: 1 }`, which this module never uses.
  */
 type ProfileWritableFields = {
-  fullName?: string;
-  citationName?: string | null;
-  title?: string;
-  photoUrl?: string | null;
-  bio?: string | null;
+  labName?: string;
+  labTagline?: string | null;
+  logoUrl?: string | null;
+  labOverview?: string | null;
   positionAffiliation?: string | null;
   researchStatement?: string | null;
-  linkedinUrl?: string | null;
-  googleScholarUrl?: string | null;
   calendlyUrl?: string | null;
   publicationsIntro?: string | null;
-  teachingIntro?: string | null;
   teamIntro?: string | null;
   eventsIntro?: string | null;
   appointmentIntro?: string | null;
@@ -49,16 +45,13 @@ type ProfileWritableFields = {
 
 /** Nullable columns, in one list so full-write and partial-write stay in step. */
 const NULLABLE_FIELDS = [
-  'citationName',
-  'photoUrl',
-  'bio',
+  'labTagline',
+  'logoUrl',
+  'labOverview',
   'positionAffiliation',
   'researchStatement',
-  'linkedinUrl',
-  'googleScholarUrl',
   'calendlyUrl',
   'publicationsIntro',
-  'teachingIntro',
   'teamIntro',
   'eventsIntro',
   'appointmentIntro',
@@ -67,18 +60,14 @@ const NULLABLE_FIELDS = [
 function toDomain(row: PrismaProfile): Profile {
   return {
     id: row.id,
-    fullName: row.fullName,
-    citationName: row.citationName,
-    title: row.title,
-    photoUrl: row.photoUrl,
-    bio: row.bio,
+    labName: row.labName,
+    labTagline: row.labTagline,
+    logoUrl: row.logoUrl,
+    labOverview: row.labOverview,
     positionAffiliation: row.positionAffiliation,
     researchStatement: row.researchStatement,
-    linkedinUrl: row.linkedinUrl,
-    googleScholarUrl: row.googleScholarUrl,
     calendlyUrl: row.calendlyUrl,
     publicationsIntro: row.publicationsIntro,
-    teachingIntro: row.teachingIntro,
     teamIntro: row.teamIntro,
     eventsIntro: row.eventsIntro,
     appointmentIntro: row.appointmentIntro,
@@ -88,7 +77,7 @@ function toDomain(row: PrismaProfile): Profile {
 
 /** Whole-document write: every column is set, so an omitted optional field clears its column. */
 function toFullWriteFields(data: UpdateProfileData): ProfileWritableFields {
-  const fields: ProfileWritableFields = { fullName: data.fullName, title: data.title };
+  const fields: ProfileWritableFields = { labName: data.labName };
   for (const key of NULLABLE_FIELDS) fields[key] = data[key] ?? null;
   return fields;
 }
@@ -100,10 +89,9 @@ function toFullWriteFields(data: UpdateProfileData): ProfileWritableFields {
  */
 function toPatchFields(data: PatchProfileData): ProfileWritableFields {
   const fields: ProfileWritableFields = {};
-  // Required scalars have no NULL to write to, so an explicit undefined is ignored rather than
+  // A required scalar has no NULL to write to, so an explicit undefined is ignored rather than
   // being allowed to blank the row. The schema's `min(1)` means a present value is never empty.
-  if (data.fullName !== undefined) fields.fullName = data.fullName;
-  if (data.title !== undefined) fields.title = data.title;
+  if (data.labName !== undefined) fields.labName = data.labName;
   for (const key of NULLABLE_FIELDS) {
     if (key in data) fields[key] = data[key] ?? null;
   }
@@ -112,8 +100,7 @@ function toPatchFields(data: PatchProfileData): ProfileWritableFields {
 
 /** Blank placeholder used only when the singleton row does not exist yet. */
 const BLANK_PROFILE_DATA: Prisma.ProfileCreateInput = {
-  fullName: '',
-  title: '',
+  labName: '',
 };
 
 const auditData = (audit: AuditContext, entityId: string) =>

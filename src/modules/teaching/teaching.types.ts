@@ -5,10 +5,8 @@
  * Which list a CV entry belongs to. Owned here rather than imported from Prisma so nothing
  * generated crosses the service boundary — same convention the old appointment status used.
  *
- * Education/fellowship/scholarship/invited_talk render on About, research_interest on Research
- * (moved off About to keep that tab biographical rather than a second research page), and
- * teaching_role/teaching_award on Teaching. That split is the whole reason the seven Json columns
- * became rows: a single whole-document profile PUT could not serve three pages.
+ * Since ADR-016 every section renders on the owning team member's profile page. The three section
+ * groups below are the headings that page (and the admin screen) arranges them under.
  */
 export const CV_SECTIONS = [
   'education',
@@ -56,6 +54,8 @@ export const CV_SECTION_LABELS: Record<CvSection, string> = {
  */
 export type CvEntry = {
   id: string;
+  /** The team member whose profile this line belongs to. */
+  teamMemberId: string;
   section: CvSection;
   title: string;
   subtitle: string | null;
@@ -68,6 +68,8 @@ export type CvEntry = {
 
 export type Course = {
   id: string;
+  /** The team member who teaches it. */
+  teamMemberId: string;
   code: string | null;
   title: string;
   level: string;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createCourseSchema, createCvEntrySchema, updateCvEntrySchema } from '../teaching.schema';
 
 describe('createCvEntrySchema', () => {
-  const VALID = { section: 'education', title: 'PhD in Computer Science' };
+  const VALID = { teamMemberId: 'mem_1', section: 'education', title: 'PhD in Computer Science' };
 
   it('accepts a minimal entry', () => {
     const parsed = createCvEntrySchema.parse(VALID);
@@ -11,6 +11,12 @@ describe('createCvEntrySchema', () => {
     expect(parsed.title).toBe('PhD in Computer Science');
     // Absent, not blank — the transform to null only fires when the form actually sends "".
     expect(parsed.subtitle).toBeUndefined();
+  });
+
+  it('requires the owning team member', () => {
+    expect(createCvEntrySchema.safeParse({ ...VALID, teamMemberId: undefined }).success).toBe(
+      false,
+    );
   });
 
   it('rejects a section that is not one of the seven', () => {
@@ -51,10 +57,14 @@ describe('updateCvEntrySchema', () => {
   it('allows moving an entry between sections', () => {
     expect(updateCvEntrySchema.parse({ section: 'teaching_role' }).section).toBe('teaching_role');
   });
+
+  it('does not let an update move an entry to another member', () => {
+    expect(updateCvEntrySchema.parse({ teamMemberId: 'mem_2' })).not.toHaveProperty('teamMemberId');
+  });
 });
 
 describe('createCourseSchema', () => {
-  const VALID = { title: 'Applied Cryptography', level: 'Graduate' };
+  const VALID = { teamMemberId: 'mem_1', title: 'Applied Cryptography', level: 'Graduate' };
 
   it('accepts a course with no code and no term', () => {
     const parsed = createCourseSchema.parse(VALID);
@@ -71,7 +81,10 @@ describe('createCourseSchema', () => {
   });
 
   it('requires a level, because it is the grouping key on the public tab', () => {
-    expect(createCourseSchema.safeParse({ title: 'Applied Cryptography' }).success).toBe(false);
+    expect(
+      createCourseSchema.safeParse({ teamMemberId: 'mem_1', title: 'Applied Cryptography' })
+        .success,
+    ).toBe(false);
     expect(createCourseSchema.safeParse({ ...VALID, level: '  ' }).success).toBe(false);
   });
 
@@ -81,6 +94,10 @@ describe('createCourseSchema', () => {
 
   it('rejects a link that is not a URL', () => {
     expect(createCourseSchema.safeParse({ ...VALID, link: 'not-a-url' }).success).toBe(false);
+  });
+
+  it('requires the owning team member', () => {
+    expect(createCourseSchema.safeParse({ title: 'X', level: 'Graduate' }).success).toBe(false);
   });
 
   it('coerces the sort order from a form string', () => {

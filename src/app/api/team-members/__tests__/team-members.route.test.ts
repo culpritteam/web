@@ -11,17 +11,21 @@ beforeEach(() => {
 });
 
 describe('GET /api/team-members', () => {
-  it('returns 200 with all team members, unfiltered, and a public-cache header', async () => {
+  it('returns 200 with all team members and a public-cache header', async () => {
     const { ok } = await import('@/modules/shared/lib/result');
     list.mockResolvedValueOnce(
       ok([
         {
           id: 'tm_1',
           name: 'Jane Doe',
+          citationName: null,
           role: 'PhD Candidate',
+          affiliation: null,
           bio: null,
           photoUrl: null,
-          researchGroupId: 'group_1',
+          linkedinUrl: null,
+          googleScholarUrl: null,
+          isDirector: false,
           sortOrder: 0,
           createdAt: new Date(),
           updatedAt: new Date(),

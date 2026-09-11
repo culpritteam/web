@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getProfileCached } from '@/modules/profile';
 import { getPublicationService, PublicationsList } from '@/modules/publications';
+import { getTeamMemberService } from '@/modules/research-groups';
 import { EmptyState } from '@/modules/shared/ui/empty-state';
 import { PageHeading } from '@/modules/shared/ui/page-heading';
 import { toMetaDescription } from '../_lib/page-meta';
@@ -24,12 +25,14 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PublicationsPage() {
   // `getProfileCached` is request-scoped and already read by the layout's site header, so pulling
   // the intro out of it here costs no extra query.
-  const [result, profileResult] = await Promise.all([
+  const [result, profileResult, membersResult] = await Promise.all([
     getPublicationService().list(),
     getProfileCached(),
+    getTeamMemberService().list(),
   ]);
   const intro = profileResult.ok ? profileResult.data?.publicationsIntro : null;
-  const citationName = profileResult.ok ? profileResult.data?.citationName : null;
+  // Byline names that match a lab member link to their profile.
+  const members = membersResult.ok ? membersResult.data : [];
 
   return (
     <div>
@@ -49,7 +52,7 @@ export default async function PublicationsPage() {
         {!result.ok || result.data.length === 0 ? (
           <EmptyState title="No publications listed yet" />
         ) : (
-          <PublicationsList items={result.data} citationName={citationName} />
+          <PublicationsList items={result.data} members={members} />
         )}
       </div>
     </div>

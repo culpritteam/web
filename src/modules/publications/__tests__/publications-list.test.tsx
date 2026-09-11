@@ -3,17 +3,11 @@ import { render, screen } from '@testing-library/react';
 import { PublicationsList } from '../ui/publications-list';
 import type { Publication } from '../publication.types';
 
-// The public byline. Both cases here are load-bearing: attribution is stored as rows, so an empty
-// list is not missing data — it is how the site says "this is the professor's own work", and it
-// must render nothing at all rather than an empty line or a placeholder.
+// The public byline. A name matching a lab member (by name or citation name) links to their profile
+// in the accent colour; an outside author stays grey text. An empty list is the lab's own work and
+// renders nothing at all.
 
-const author = (name: string, sortOrder: number) => ({
-  id: `a${sortOrder}`,
-  teamMemberId: null,
-  name,
-  isProfileOwner: false,
-  sortOrder,
-});
+const author = (name: string, sortOrder: number) => ({ id: `a${sortOrder}`, name, sortOrder });
 
 const publication = (overrides: Partial<Publication>): Publication => ({
   id: 'p1',
@@ -27,6 +21,8 @@ const publication = (overrides: Partial<Publication>): Publication => ({
   ...overrides,
 });
 
+const members = [{ id: 'm1', name: 'Jutarat Jaimunk', citationName: 'J. Jaimunk' }];
+
 describe('PublicationsList', () => {
   it('renders the authors comma-joined, in the stored order', () => {
     render(
@@ -39,40 +35,33 @@ describe('PublicationsList', () => {
       />,
     );
 
-    expect(screen.getByText('A. Osei, R. Lindqvist, T. Meyer')).toBeInTheDocument();
+    expect(screen.getByText('A. Osei').closest('p')).toHaveTextContent(
+      'A. Osei, R. Lindqvist, T. Meyer',
+    );
   });
 
-  it('renders the live citation name on the professor own row, not the stored snapshot', () => {
-    // The snapshot is deliberately stale here. Her row must follow Profile.citationName so that
-    // changing it once re-credits every paper, rather than leaving old rows disagreeing.
+  it('links a matched member to their profile and leaves outside authors grey', () => {
     render(
       <PublicationsList
-        citationName="J. Jaimunk"
-        items={[
-          publication({
-            authors: [
-              {
-                id: 'a0',
-                teamMemberId: null,
-                name: 'STALE NAME',
-                isProfileOwner: true,
-                sortOrder: 0,
-              },
-              author('M. Fernandez', 1),
-            ],
-          }),
-        ]}
+        members={members}
+        items={[publication({ authors: [author(' j. jaimunk ', 0), author('M. Fernandez', 1)] })]}
       />,
     );
 
-    expect(screen.getByText('J. Jaimunk, M. Fernandez')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /j\. jaimunk/i });
+    expect(link).toHaveAttribute('href', '/team/m1');
+    expect(link).toHaveClass('text-accent', 'hover:underline', 'focus-visible:underline');
+
+    const outside = screen.getByText('M. Fernandez');
+    expect(outside.closest('a')).toBeNull();
+    expect(outside).toHaveClass('text-muted-foreground');
+    expect(screen.getAllByRole('link')).toHaveLength(1);
   });
 
   it('renders no byline at all when nobody is credited', () => {
     const { container } = render(<PublicationsList items={[publication({ authors: [] })]} />);
 
     expect(screen.getByText('Evasive Malware Detection')).toBeInTheDocument();
-    // The venue is the only <p> that survives — no empty byline element is left behind.
     const paragraphs = [...container.querySelectorAll('p')].map((p) => p.textContent);
     expect(paragraphs).toEqual(['USENIX Security']);
   });

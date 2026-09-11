@@ -130,8 +130,10 @@ nobody trusts the wrong source, and a maintainer can decide what (if anything) t
    hand alongside the `.md`. It is currently pre-[ADR-011](decisions/ADR-011-events-replace-appointments.md):
    it still documents the `Appointment` entity, its status transitions and its lifecycle, and has
    never had the ADR-012 CV-entry change. Its §7.1 entity tables **were** updated on 2026-09-06 for
-   [ADR-015](decisions/ADR-015-attribution-rows.md). `scripts/docs-search.mjs` only walks `.md`
-   files, which is how the drift went unnoticed.
+   [ADR-015](decisions/ADR-015-attribution-rows.md), which
+   [ADR-016](decisions/ADR-016-lab-team-profiles.md) (2026-09-11) has since superseded — the HTML
+   still shows the professor-centred `Profile`, research groups and byline member links.
+   `scripts/docs-search.mjs` only walks `.md` files, which is how the drift went unnoticed.
 
 ## Retrieval
 
