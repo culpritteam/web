@@ -120,4 +120,18 @@ describe('updatePublicationSchema', () => {
     const result = updatePublicationSchema.safeParse({ year: 2025 });
     expect(result.success).toBe(true);
   });
+
+  // Regression: `.partial()` does NOT strip `.default([])` in Zod 4, so this used to parse to
+  // `authors: []`. An empty array is truthy, so the repository's guard passed and deleted every
+  // author row — a silent byline wipe on any update that did not resend the authors.
+  it('leaves `authors` absent when the key is omitted', () => {
+    const result = updatePublicationSchema.parse({ year: 2025 });
+    expect('authors' in result).toBe(false);
+    expect(result.authors).toBeUndefined();
+  });
+
+  it('keeps an explicit empty `authors` array, which clears the byline', () => {
+    const result = updatePublicationSchema.parse({ authors: [] });
+    expect(result.authors).toEqual([]);
+  });
 });

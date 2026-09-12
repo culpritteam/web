@@ -26,6 +26,14 @@ export const createResearchSchema = z.object({
 export type CreateResearchInput = z.infer<typeof createResearchSchema>;
 export type ResearchContributorInput = z.infer<typeof researchContributor>;
 
-/** Admin: partial update of a research work. */
-export const updateResearchSchema = createResearchSchema.partial();
+/**
+ * Admin: partial update of a research work.
+ *
+ * `contributors` is re-declared without its `.default([])` — see the note on
+ * `updatePublicationSchema`, which had the identical defect. Absent means "leave the byline alone";
+ * an explicit `[]` clears it.
+ */
+export const updateResearchSchema = createResearchSchema
+  .partial()
+  .extend({ contributors: contributorList.optional() });
 export type UpdateResearchInput = z.infer<typeof updateResearchSchema>;

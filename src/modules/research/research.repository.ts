@@ -138,8 +138,9 @@ export class PrismaResearchRepository implements ResearchRepository {
         },
       });
       // Replaced wholesale rather than diffed — see the note in publication.repository.ts. An
-      // absent `contributors` key still means "leave it alone".
-      if (input.data.contributors) {
+      // absent `contributors` key still means "leave it alone"; an explicit `[]` clears it, which is
+      // why this tests `!== undefined` rather than truthiness.
+      if (input.data.contributors !== undefined) {
         await tx.researchContributor.deleteMany({ where: { researchId: row.id } });
         await tx.researchContributor.createMany({
           data: toContributorRows(input.data.contributors).map((contributor) => ({

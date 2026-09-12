@@ -24,6 +24,16 @@ export const createPublicationSchema = z.object({
 export type CreatePublicationInput = z.infer<typeof createPublicationSchema>;
 export type PublicationAuthorInput = z.infer<typeof publicationAuthor>;
 
-/** Admin: partial update of a publication. */
-export const updatePublicationSchema = createPublicationSchema.partial();
+/**
+ * Admin: partial update of a publication.
+ *
+ * `authors` is re-declared without its `.default([])`. `.partial()` alone keeps the default, so an
+ * update that never mentions authors would parse to `authors: []` — and since `[]` is truthy, the
+ * repository's guard would pass and replace the stored byline with nothing. Absent has to stay
+ * absent for "leave it alone" to hold; an explicit `[]` still clears the list. Same fix, same
+ * reason, as `links` on `updateTeamMemberSchema`.
+ */
+export const updatePublicationSchema = createPublicationSchema
+  .partial()
+  .extend({ authors: authorList.optional() });
 export type UpdatePublicationInput = z.infer<typeof updatePublicationSchema>;

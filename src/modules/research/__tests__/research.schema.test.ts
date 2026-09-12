@@ -105,4 +105,18 @@ describe('updateResearchSchema', () => {
     const result = updateResearchSchema.safeParse({});
     expect(result.success).toBe(true);
   });
+
+  // Regression: identical defect to `updatePublicationSchema` — `.partial()` keeps `.default([])`
+  // in Zod 4, so an update that never mentioned contributors arrived as `[]` and the repository
+  // wiped the byline.
+  it('leaves `contributors` absent when the key is omitted', () => {
+    const result = updateResearchSchema.parse({ title: 'New title' });
+    expect('contributors' in result).toBe(false);
+    expect(result.contributors).toBeUndefined();
+  });
+
+  it('keeps an explicit empty `contributors` array, which clears the byline', () => {
+    const result = updateResearchSchema.parse({ contributors: [] });
+    expect(result.contributors).toEqual([]);
+  });
 });

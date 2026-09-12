@@ -156,7 +156,13 @@ export class PrismaPublicationRepository implements PublicationRepository {
       // Replaced wholesale rather than diffed. The list is a handful of short rows, nothing holds a
       // reference to an author row's id, and an absent `authors` key still means "leave it alone" —
       // the same partial-update convention every scalar column above follows.
-      if (input.data.authors) {
+      //
+      // Explicitly `!== undefined`, not a truthiness check: an empty array is truthy, so `[]` must
+      // reach the replace below (clearing the byline is a real request) while `undefined` must not.
+      // The schema now guarantees an omitted key stays undefined; this guard is the second line of
+      // defence, because when it was `if (input.data.authors)` a defaulted `[]` sailed through it
+      // and deleted every author row.
+      if (input.data.authors !== undefined) {
         await tx.publicationAuthor.deleteMany({ where: { publicationId: row.id } });
         await tx.publicationAuthor.createMany({
           data: toAuthorRows(input.data.authors).map((author) => ({
