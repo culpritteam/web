@@ -87,8 +87,28 @@ model Publication {
   @@map("publication")
 }
 
+/// Which team a member belongs to. A flat enum discriminator on `team_member`, NOT a groups table:
+/// the `ResearchGroup` entity was deliberately deleted in ADR-016 and is not coming back. The four
+/// teams are a fixed editorial grouping of the one Team tab, not user-managed content — an admin
+/// never creates a fifth one, so there is nothing for a table to hold.
+///
+/// The team decides which sections a member's profile page may carry. The rules live in ONE place,
+/// src/modules/shared/lib/team-kind.ts, and are enforced by the services on write and again on
+/// read (a member whose team changed keeps any now-disallowed rows; they simply stop rendering):
+///
+///   director/professor  bio, all 7 CV sections, courses, projects, research+publications, links
+///   research            bio, research_interest only,  no courses, projects, research+publications, links
+///   development         bio, no CV sections,          no courses, projects, no research/publications, links
+enum TeamKind {
+  director
+  professor
+  research
+  development
+}
+
 /// A member of the lab. Every member is listed on the public Team tab and has a profile page at
-/// `/team/[id]`, which renders this row plus its `CvEntry` and `Course` rows.
+/// `/team/[id]`, which renders this row plus its `CvEntry`, `Course`, `Project` and `MemberLink`
+/// rows — whichever of them the member's `teamKind` allows.
 ///
 /// The director — the professor who runs the lab — is a member like everyone else, flagged
 /// `isDirector`. Her bio, CV, links and photo lived on `Profile` until 2026-09-11 (ADR-016).
@@ -110,23 +130,75 @@ model TeamMember {
   affiliation         String?
   bio                 String?            @db.Text
   photoUrl            String?            @map("photo_url")
-  linkedinUrl         String?            @map("linkedin_url")
-  googleScholarUrl    String?            @map("google_scholar_url")
+  /// Which team this member belongs to, and therefore which profile sections they may have.
+  /// No DB-level default on purpose: the team is an editorial decision the admin makes on every
+  /// create, so a silent fallback would only hide a bug. `isDirector` is kept consistent with it by
+  /// the service (`resolveTeamAssignment`) — the flag is true exactly when the team is `director`.
+  teamKind            TeamKind           @map("team_kind")
   /// The lab director. Sorts first on the Team tab whatever `sortOrder` says. See the model comment
-  /// for the one-director invariant.
+  /// for the one-director invariant. Redundant with `teamKind = director` by design: it is what the
+  /// partial unique index constrains, and what every "director first" ordering reads.
   isDirector          Boolean            @default(false) @map("is_director")
   sortOrder           Int                @default(0) @map("sort_order")
   /// Soft links from events this member was added to. The event rows snapshot their own copy of
   /// the name/role, so deleting this member nulls the link without erasing event history.
   eventParticipations EventParticipant[]
-  /// This member's CV lines and taught courses. Cascade: they are part of the member's profile and
-  /// mean nothing without it.
+  /// This member's CV lines, taught courses, projects and external links. Cascade: they are part of
+  /// the member's profile and mean nothing without it.
   cvEntries           CvEntry[]
   courses             Course[]
+  projects            Project[]
+  links               MemberLink[]
   createdAt           DateTime           @default(now()) @map("created_at")
   updatedAt           DateTime           @updatedAt @map("updated_at")
 
   @@map("team_member")
+}
+
+/// Something a member built or is building, rendered on their profile page. Allowed for every team
+/// — it is the only content section a `development` member has besides their bio and links.
+///
+/// Its own table rather than a `CvEntry` section: a project carries a summary paragraph and an
+/// optional link, and is ordered per member, which no CV line is.
+model Project {
+  id           String     @id @default(cuid())
+  teamMemberId String     @map("team_member_id")
+  teamMember   TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+  title        String
+  summary      String     @db.Text
+  /// Optional external link — a repository, demo or write-up.
+  link         String?
+  sortOrder    Int        @default(0) @map("sort_order")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@index([teamMemberId, sortOrder])
+  @@map("project")
+}
+
+/// An external profile link on a member's page. Replaced the fixed `linkedin_url` and
+/// `google_scholar_url` columns: two columns could only ever express two services, and every member
+/// wanted a different third one (GitHub, ORCID, a personal site).
+///
+/// `label` is free text the admin types — deliberately not an enum, so adding a service is data,
+/// not a migration. `url` is validated as http(s) at the boundary like every other stored URL.
+///
+/// Edited as part of the member, the same way `PublicationAuthor` rows are edited as part of their
+/// publication: the member payload carries the whole list and the repository replaces it in one
+/// transaction. There is no per-link API.
+model MemberLink {
+  id           String     @id @default(cuid())
+  teamMemberId String     @map("team_member_id")
+  teamMember   TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+  /// e.g. "LinkedIn", "Google Scholar", "GitHub", "ORCID".
+  label        String
+  url          String
+  sortOrder    Int        @default(0) @map("sort_order")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@index([teamMemberId, sortOrder])
+  @@map("member_link")
 }
 
 // --- Teaching & CV -------------------------------------------------------------------------------

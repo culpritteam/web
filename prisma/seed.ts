@@ -38,11 +38,42 @@ const DIRECTOR = {
   role: 'Assistant Professor',
   affiliation: 'Department of Computer Engineering, Chiang Mai University',
   bio: "I am currently an assistant professor in Computer Engineering at Chiang Mai University. I obtained my PhD in Computer Science from King's College London in 2021. During my PhD studies, I was a research fellow at the School of Informatics, University of Edinburgh, UK; a guest teacher at the London School of Economics and Political Science (with an Excellence in Education Award 2020-2021); and a teaching assistant at King's College London. I have been invited to be a visiting researcher in many prestigious universities in Europe and the UK, such as the University College London (2025), King's College London (2024 and 2025), and Nantes Université, which is funded by the European Union's Horizon 2020 research and innovation programme under the Marie Skłodowska-Curie grant (2026). I have won multiple awards, including the Erasmus Mundus Scholarship (a ten-month program in Italy in 2009, a one-month program in the UK in 2015 and a ten-day program in Portugal in 2022), and received student travel awards at the Symposium on Search-Based Software Engineering (SSBSE 2019), Estonia and the UK PhD Winter School on Cyber Security 2020, Newcastle, UK.",
-  linkedinUrl: 'https://www.linkedin.com/in/jenjira-jaimunk-535b7734/',
-  googleScholarUrl: 'https://scholar.google.com/citations?user=Evff3gsAAAAJ&hl=en',
+  teamKind: 'director' as const,
   isDirector: true,
   sortOrder: -1,
 };
+
+// Her external links. Free-form `member_link` rows since 2026-09-12 — the fixed `linkedin_url` and
+// `google_scholar_url` columns are gone, and the array order is the stored `sortOrder`.
+const DIRECTOR_LINKS = [
+  { label: 'LinkedIn', url: 'https://www.linkedin.com/in/jenjira-jaimunk-535b7734/' },
+  { label: 'Google Scholar', url: 'https://scholar.google.com/citations?user=Evff3gsAAAAJ&hl=en' },
+];
+
+// The team that builds and runs this site. A `development` member has a bio, projects and links and
+// nothing else — no CV sections, no courses, no bylines — so this is what exercises that path with
+// real data.
+const DEVELOPMENT_MEMBERS = [
+  {
+    member: {
+      name: 'Herique Wyco',
+      role: 'Web Developer',
+      affiliation: 'Culprit Web Development Team',
+      bio: 'Builds and maintains the lab site — the public pages, the admin app behind them, and the deployment pipeline that ships both.',
+      teamKind: 'development' as const,
+      sortOrder: 10,
+    },
+    links: [{ label: 'GitHub', url: 'https://github.com/Wyco68' }],
+    projects: [
+      {
+        title: 'The Culprit lab website',
+        summary:
+          'The lab’s public site and its admin application: Next.js App Router, a layered service/repository architecture over PostgreSQL, and an append-only audit trail behind every admin write.',
+        link: 'https://culprit.wyco-dev.com',
+      },
+    ],
+  },
+];
 
 type CvLine = { title: string; subtitle?: string; year?: string };
 
@@ -172,7 +203,13 @@ async function seedDirector() {
     return;
   }
   await prisma.$transaction(async (tx) => {
-    const director = await tx.teamMember.create({ data: DIRECTOR });
+    const director = await tx.teamMember.create({
+      data: {
+        ...DIRECTOR,
+        // Array order is the stored order, the same rule the admin API follows.
+        links: { create: DIRECTOR_LINKS.map((link, sortOrder) => ({ ...link, sortOrder })) },
+      },
+    });
     const entries = Object.entries(DIRECTOR_CV).flatMap(([section, lines]) =>
       lines.map((line, sortOrder) => ({
         teamMemberId: director.id,
@@ -184,14 +221,33 @@ async function seedDirector() {
       })),
     );
     await tx.cvEntry.createMany({ data: entries });
-    console.log(`Director created with ${entries.length} CV entries.`);
+    console.log(`Director created with ${entries.length} CV entries and ${DIRECTOR_LINKS.length} links.`);
   });
+}
+
+async function seedDevelopmentTeam() {
+  for (const { member, links, projects } of DEVELOPMENT_MEMBERS) {
+    const existing = await prisma.teamMember.findFirst({ where: { name: member.name } });
+    if (existing) {
+      console.log(`${member.name} already present — skipping.`);
+      continue;
+    }
+    await prisma.teamMember.create({
+      data: {
+        ...member,
+        links: { create: links.map((link, sortOrder) => ({ ...link, sortOrder })) },
+        projects: { create: projects.map((project, sortOrder) => ({ ...project, sortOrder })) },
+      },
+    });
+    console.log(`${member.name} created with ${projects.length} projects and ${links.length} links.`);
+  }
 }
 
 async function main() {
   await seedAdmin();
   await seedProfile();
   await seedDirector();
+  await seedDevelopmentTeam();
 }
 
 main()
