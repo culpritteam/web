@@ -1,8 +1,15 @@
-import { NotFoundError } from '@/modules/shared/lib/errors';
+import { NotFoundError, ValidationError } from '@/modules/shared/lib/errors';
 import { attempt, type Result } from '@/modules/shared/lib/result';
 import { logger as defaultLogger, type Logger } from '@/modules/shared/lib/logger';
+import {
+  TEAM_KIND_LABELS,
+  allowsCourses,
+  allowsCvSection,
+  type TeamKind,
+} from '@/modules/shared/lib/team-kind';
 import type { CvEntryRepository } from './cv-entry.repository';
 import type { CourseRepository } from './course.repository';
+import { CV_SECTION_LABELS } from './teaching.types';
 import type { Course, CourseStats, CvEntry, CvEntryStats, CvSection } from './teaching.types';
 import type {
   CreateCourseInput,
@@ -13,10 +20,36 @@ import type {
 
 // Business layer for the CV and Teaching sections of a team member's profile page. Courses and CV entries are plain published
 // content — no status, no lifecycle, nothing that can return 409 — so the services are thin:
-// existence checks, audit context, structured logging, errors on the Result channel.
+// existence checks, the per-team attribute rules below, audit context, structured logging, errors
+// on the Result channel.
+
+/**
+ * Port onto the research-groups module's team lookup. Injected rather than imported so this service
+ * never reaches into another module's repository, and so the team rules are testable without a
+ * database. Wired in `container.ts`.
+ */
+export interface MemberTeamDirectory {
+  /** The member's team, or null when the id is unknown. */
+  teamKindOf(teamMemberId: string): Promise<TeamKind | null>;
+}
+
+/**
+ * The team a write is aimed at. Not every team may have every kind of row — see
+ * shared/lib/team-kind for the rules table, the single source of truth that these services enforce
+ * on write and the public profile read gates on.
+ */
+async function requireTeamKind(
+  members: MemberTeamDirectory,
+  teamMemberId: string,
+): Promise<TeamKind> {
+  const kind = await members.teamKindOf(teamMemberId);
+  if (!kind) throw new NotFoundError('Team member not found.');
+  return kind;
+}
 
 export type CvEntryServiceDeps = {
   repository: CvEntryRepository;
+  members: MemberTeamDirectory;
   logger?: Logger;
 };
 
@@ -32,13 +65,28 @@ export interface CvEntryService {
 }
 
 export function createCvEntryService(deps: CvEntryServiceDeps): CvEntryService {
-  const { repository } = deps;
+  const { repository, members } = deps;
   const log = deps.logger ?? defaultLogger;
 
   async function requireExisting(id: string): Promise<CvEntry> {
     const existing = await repository.findById(id);
     if (!existing) throw new NotFoundError('Entry not found.');
     return existing;
+  }
+
+  /**
+   * Rejects a CV entry the owning member's team may not have: a `research` member keeps research
+   * interests and nothing else, and a `development` member has no CV at all. A validation error,
+   * not a conflict — nothing here has a state machine, and no service in this codebase returns 409.
+   */
+  async function requireSectionAllowed(teamMemberId: string, section: CvSection): Promise<void> {
+    const kind = await requireTeamKind(members, teamMemberId);
+    if (!allowsCvSection(kind, section)) {
+      throw new ValidationError(
+        `${TEAM_KIND_LABELS[kind]} members cannot have "${CV_SECTION_LABELS[section]}" entries.`,
+        { section: ['Not available for this team.'] },
+      );
+    }
   }
 
   return {
@@ -48,6 +96,7 @@ export function createCvEntryService(deps: CvEntryServiceDeps): CvEntryService {
 
     create: (input, actor) =>
       attempt(async () => {
+        await requireSectionAllowed(input.teamMemberId, input.section);
         const created = await repository.createWithAudit({
           data: input,
           audit: { actor, action: 'cv_entry.create' },
@@ -63,7 +112,10 @@ export function createCvEntryService(deps: CvEntryServiceDeps): CvEntryService {
 
     update: (id, input, actor) =>
       attempt(async () => {
-        await requireExisting(id);
+        const existing = await requireExisting(id);
+        // Checked against where the entry is GOING — an update can move it to another section. The
+        // owning member cannot change, but their team can have changed since the entry was written.
+        await requireSectionAllowed(existing.teamMemberId, input.section ?? existing.section);
         const updated = await repository.updateWithAudit({
           id,
           data: input,
@@ -101,6 +153,7 @@ export function createCvEntryService(deps: CvEntryServiceDeps): CvEntryService {
 
 export type CourseServiceDeps = {
   repository: CourseRepository;
+  members: MemberTeamDirectory;
   logger?: Logger;
 };
 
@@ -115,13 +168,26 @@ export interface CourseService {
 }
 
 export function createCourseService(deps: CourseServiceDeps): CourseService {
-  const { repository } = deps;
+  const { repository, members } = deps;
   const log = deps.logger ?? defaultLogger;
 
   async function requireExisting(id: string): Promise<Course> {
     const existing = await repository.findById(id);
     if (!existing) throw new NotFoundError('Course not found.');
     return existing;
+  }
+
+  /**
+   * Only the director and professors teach. A validation error, not a conflict — nothing here has a
+   * state machine, and no service in this codebase returns 409.
+   */
+  async function requireCoursesAllowed(teamMemberId: string): Promise<void> {
+    const kind = await requireTeamKind(members, teamMemberId);
+    if (!allowsCourses(kind)) {
+      throw new ValidationError(`${TEAM_KIND_LABELS[kind]} members cannot teach courses.`, {
+        teamMemberId: ['Courses are only available to the director and professors.'],
+      });
+    }
   }
 
   return {
@@ -131,6 +197,7 @@ export function createCourseService(deps: CourseServiceDeps): CourseService {
 
     create: (input, actor) =>
       attempt(async () => {
+        await requireCoursesAllowed(input.teamMemberId);
         const created = await repository.createWithAudit({
           data: input,
           audit: { actor, action: 'course.create' },
@@ -141,7 +208,10 @@ export function createCourseService(deps: CourseServiceDeps): CourseService {
 
     update: (id, input, actor) =>
       attempt(async () => {
-        await requireExisting(id);
+        const existing = await requireExisting(id);
+        // Re-checked on every update: the owning member cannot change, but their team can have
+        // changed since the course was written.
+        await requireCoursesAllowed(existing.teamMemberId);
         const updated = await repository.updateWithAudit({
           id,
           data: input,

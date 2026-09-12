@@ -6,6 +6,7 @@ import { useDeleteRecord } from '@/modules/shared/lib/use-delete-record';
 import { Button } from '@/modules/shared/ui/button';
 import { EmptyState } from '@/modules/shared/ui/empty-state';
 import { ConfirmDialog } from '@/modules/shared/ui/confirm-dialog';
+import { DeleteOnlyAction } from '@/modules/shared/ui/delete-only-action';
 import { RowActions } from '@/modules/shared/ui/row-actions';
 import { FormSection, FormSectionCount } from '@/modules/shared/ui/form-section';
 import {
@@ -52,16 +53,33 @@ const CV_SECTION_DESCRIPTIONS: Record<CvSection, string> = {
   teaching_award: 'Teaching prizes and commendations.',
 };
 
+/**
+ * Shown instead of a section's own description once the member's team no longer uses it. Said
+ * where the rows are rather than in a banner at the top of the screen.
+ */
+const RETIRED_DESCRIPTION =
+  'This team does not use this list, so these no longer appear on the public profile. They are kept on record — delete them, or move the member to a team that uses them.';
+
 export interface CvEntriesAdminProps {
   /** The member whose profile these lists belong to. */
   teamMemberId: string;
   /** The lists to edit, in the order the public profile renders them. */
   sections: readonly CvSection[];
+  /**
+   * Lists this member's team may NOT have but which still hold rows (ADR-017: a team change never
+   * deletes anything). Rendered after the editable ones, delete-only. Usually empty.
+   */
+  retiredSections?: readonly CvSection[];
   /** Every entry for those sections. Filtering happens here so the page stays a single query. */
   entries: CvEntry[];
 }
 
-export function CvEntriesAdmin({ teamMemberId, sections, entries }: CvEntriesAdminProps) {
+export function CvEntriesAdmin({
+  teamMemberId,
+  sections,
+  retiredSections = [],
+  entries,
+}: CvEntriesAdminProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<CvEntry | undefined>(undefined);
   const [defaultSection, setDefaultSection] = useState<CvSection | undefined>(undefined);
@@ -82,23 +100,29 @@ export function CvEntriesAdmin({ teamMemberId, sections, entries }: CvEntriesAdm
 
   return (
     <>
-      {sections.map((section) => {
+      {[...sections, ...retiredSections].map((section) => {
         const rows = entries.filter((entry) => entry.section === section);
         const itemLabel = CV_SECTION_ITEM_LABELS[section];
+        const retired = retiredSections.includes(section);
+        // A retired list with nothing in it is an empty box explaining an absence. Callers pass
+        // only the sections that still hold rows, and this keeps that true if one ever doesn't.
+        if (retired && rows.length === 0) return null;
 
         return (
           <div key={section} id={`cv-${section}`} className="scroll-mt-24">
             <FormSection
               title={CV_SECTION_LABELS[section]}
-              description={CV_SECTION_DESCRIPTIONS[section]}
+              description={retired ? RETIRED_DESCRIPTION : CV_SECTION_DESCRIPTIONS[section]}
               badge={<FormSectionCount count={rows.length} />}
               action={
                 // Several sections sit on one screen, so a bare "Add" would give every button the
                 // same accessible name. The visible word stays inside the name (WCAG 2.5.3).
-                <Button aria-label={`Add ${itemLabel}`} onClick={() => openCreate(section)}>
-                  <Plus className="size-4" aria-hidden="true" />
-                  Add
-                </Button>
+                retired ? undefined : (
+                  <Button aria-label={`Add ${itemLabel}`} onClick={() => openCreate(section)}>
+                    <Plus className="size-4" aria-hidden="true" />
+                    Add
+                  </Button>
+                )
               }
             >
               {rows.length === 0 ? (
@@ -139,12 +163,19 @@ export function CvEntriesAdmin({ teamMemberId, sections, entries }: CvEntriesAdm
                           {entry.sortOrder}
                         </TableCell>
                         <TableCell className="text-right">
-                          <RowActions
-                            editLabel={`Edit entry: ${entry.title}`}
-                            deleteLabel={`Delete entry: ${entry.title}`}
-                            onEdit={() => openEdit(entry)}
-                            onDelete={() => remove.request(entry)}
-                          />
+                          {retired ? (
+                            <DeleteOnlyAction
+                              label={`Delete entry: ${entry.title}`}
+                              onDelete={() => remove.request(entry)}
+                            />
+                          ) : (
+                            <RowActions
+                              editLabel={`Edit entry: ${entry.title}`}
+                              deleteLabel={`Delete entry: ${entry.title}`}
+                              onEdit={() => openEdit(entry)}
+                              onDelete={() => remove.request(entry)}
+                            />
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

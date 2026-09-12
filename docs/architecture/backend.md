@@ -1,9 +1,9 @@
 ---
 status: current
 source_of_truth: false
-last_updated: 2026-08-13
-related_modules: [events, teaching, auth, integrations, shared]
-related_decisions: [ADR-004, ADR-005, ADR-007, ADR-008, ADR-010]
+last_updated: 2026-09-12
+related_modules: [events, teaching, projects, research-groups, auth, integrations, shared]
+related_decisions: [ADR-004, ADR-005, ADR-007, ADR-008, ADR-010, ADR-016, ADR-017]
 ---
 
 # Backend architecture
@@ -18,9 +18,15 @@ rate-limit fallback on `/api/auth/*` and mutating `/api/admin/*`; it never decid
 
 | Method | Path |
 |---|---|
-| GET | `/api/profile`, `/api/research`, `/api/publications`, `/api/groups`, `/api/team-members` (unfiltered), `/api/team-members/group/{groupId}` (filtered) |
+| GET | `/api/profile`, `/api/research`, `/api/publications`, `/api/team-members` |
+| GET | `/api/team-members/{id}` — `{ member, links, cvEntries, courses, projects }`, already filtered by the member's team (ADR-017); `404` if missing |
 | GET | `/api/events` — returns `{ upcoming, past }`, both possibly empty; never a 403 |
-| GET | `/api/teaching` — returns `{ courses, entries }` for the Teaching tab |
+| GET | `/api/teaching` — returns `{ courses, entries }` for the director |
+
+`/api/groups` and `/api/team-members/group/{groupId}` were removed with research groups on
+2026-09-11 ([ADR-016](../decisions/ADR-016-lab-team-profiles.md)); this table still listed them
+until 2026-09-12. There is deliberately **no public `/api/projects`** — projects are read through
+the member profile above.
 
 ### Events — admin only
 
@@ -52,6 +58,24 @@ event-writing endpoint**, and **no Calendly integration route** (no `/api/integr
 CV-entry writes purge both the `teaching` and `about` cache areas, because `section` is editable
 and one edit can move an entry between the two tabs. See
 [ADR-012](../decisions/ADR-012-cv-entries-and-courses.md).
+
+Both routes enforce the owning member's team ([ADR-017](../decisions/ADR-017-team-kinds-projects-member-links.md)):
+a course, or a CV entry outside the sections that team allows, is rejected with **`400
+validation_error`** (`fieldErrors.teamMemberId` for a course, `fieldErrors.section` for an entry),
+and an unknown member id is a `404`. The rule lives in `TEAM_KIND_RULES`
+(`src/modules/shared/lib/team-kind.ts`) and is enforced in the service, not the handler.
+
+### Projects — admin only
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/admin/projects?teamMemberId=` | List one member's projects; `teamMemberId` is required |
+| POST | `/api/admin/projects` | Create — `{ teamMemberId, title, summary, link?, sortOrder? }` |
+| PUT | `/api/admin/projects/{id}` | Partial update; `teamMemberId` cannot be changed |
+| DELETE | `/api/admin/projects/{id}` | Delete; returns the before-state snapshot |
+
+Projects purge the `projects` cache area, which maps to `/team/[id]`. There is no public projects
+route and no projects tab — a project exists only on its owner's profile page.
 
 ### Admin content & auth
 

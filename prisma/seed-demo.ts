@@ -35,6 +35,7 @@ const DEMO_DIRECTOR = {
   role: 'Professor of Information Security',
   affiliation: 'Chair of Applied Security · Department of Computing, Northgate University',
   bio: 'Amara Osei studies how large systems fail under adversarial pressure, and how the people who operate them can be given better tools to notice when they are failing.',
+  teamKind: 'director' as const,
   isDirector: true,
   sortOrder: -1,
 };
@@ -296,6 +297,7 @@ const DEMO_MEMBERS = [
     citationName: 'R. Lindqvist',
     role: 'Postdoctoral Researcher',
     bio: 'Builds attestation tooling for air-gapped deployments.',
+    teamKind: 'research' as const,
     sortOrder: 1,
   },
   {
@@ -303,6 +305,7 @@ const DEMO_MEMBERS = [
     citationName: 'T. Meyer',
     role: 'PhD Candidate',
     bio: 'Studying formal verification of TLS implementations.',
+    teamKind: 'research' as const,
     sortOrder: 2,
   },
   {
@@ -310,18 +313,21 @@ const DEMO_MEMBERS = [
     citationName: 'S. Whitcombe',
     role: 'Senior Researcher',
     bio: 'Field studies of incident-response teams under time pressure.',
+    teamKind: 'research' as const,
     sortOrder: 3,
   },
   {
     name: 'Yuki Tanaka',
     role: 'PhD Candidate',
     bio: 'Post-quantum migration paths for long-lived signing keys.',
+    teamKind: 'research' as const,
     sortOrder: 4,
   },
   {
     name: 'Prof. Elena Vasquez',
     role: 'Visiting Professor',
     bio: 'On sabbatical from the Institute for Secure Systems, Aalborg.',
+    teamKind: 'professor' as const,
     sortOrder: 5,
   },
 ];

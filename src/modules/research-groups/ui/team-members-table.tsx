@@ -19,10 +19,22 @@ import {
   TableRow,
 } from '@/modules/shared/ui/table';
 // Deep imports, not the barrel — see team-member-form-dialog.tsx's comment.
-import type { TeamMember } from '../team-member.types';
+import type { MemberLink, TeamMember } from '../team-member.types';
 import { TeamMemberFormDialog } from './team-member-form-dialog';
 
-export function TeamMembersTable({ items }: { items: TeamMember[] }) {
+export function TeamMembersTable({
+  items,
+  linksByMember = {},
+}: {
+  items: TeamMember[];
+  /**
+   * Each member's external links, keyed by member id, so the edit dialog opens with the list the
+   * admin is about to change. Read on the server with the members themselves — the alternative,
+   * fetching them when the dialog opens, would mean a second round trip and a spinner inside a
+   * form that otherwise opens fully populated.
+   */
+  linksByMember?: Record<string, MemberLink[]>;
+}) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TeamMember | undefined>(undefined);
 
@@ -115,6 +127,7 @@ export function TeamMembersTable({ items }: { items: TeamMember[] }) {
         open={formOpen}
         onOpenChange={setFormOpen}
         member={editing}
+        links={editing ? (linksByMember[editing.id] ?? []) : []}
       />
 
       <ConfirmDialog

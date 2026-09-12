@@ -35,12 +35,38 @@ related_decisions: [ADR-001, ADR-004, ADR-010, ADR-015, ADR-016]
 | `PublicationAuthor` | Credited authors, in citation order | `{ name, sortOrder }` rows, cascading from `Publication`. `teamMemberId` and `isProfileOwner` were **removed** 2026-09-11 ([ADR-016](../decisions/ADR-016-lab-team-profiles.md)): a name that matches a member's `name` or `citationName` is highlighted at render time, nothing is stored. |
 | `ResearchContributor` | Credited contributors | Same shape as `PublicationAuthor`; `sortOrder` is display order only. |
 | ~~`ResearchGroup`~~ | ~~Research groups~~ | **Dropped 2026-09-11 (ADR-016)**, with every member outside "Culprit Web Development Team". |
-| `TeamMember` | Lab members, including the director | `isDirector` marks the director — at most one, via the **partial unique index** `team_member_one_director`, which Prisma cannot express (documented drift). Also `citationName`, `affiliation`, `linkedinUrl`, `googleScholarUrl`. Has-many `CvEntry` and `Course`. `nickname`, `showOnTeamTab` and `researchGroupId` were removed (ADR-016). |
+| `TeamMember` | Lab members, including the director | `teamKind` (`director`/`professor`/`research`/`development`, NOT NULL, no DB default) groups them on the Team tab and decides what their profile page may have — see below. `isDirector` marks the director — at most one, via the **partial unique index** `team_member_one_director`, which Prisma cannot express (documented drift) — and is kept true exactly when `teamKind` is `director`. Also `citationName`, `affiliation`. Has-many `CvEntry`, `Course`, `Project` and `MemberLink`. `nickname`, `showOnTeamTab` and `researchGroupId` were removed (ADR-016); `linkedinUrl` and `googleScholarUrl` were removed 2026-09-12 ([ADR-017](../decisions/ADR-017-team-kinds-projects-member-links.md)). |
+| `Project` | Work owned by one member | *(new 2026-09-12, ADR-017)* `{ title, summary, link?, sortOrder }`, required `teamMemberId` (cascade). Renders only on that member's profile page. Not a `Research` row — research is lab output with a byline and no owner. |
+| `MemberLink` | A member's external profiles | *(new 2026-09-12, ADR-017)* `{ label, url, sortOrder }`, required `teamMemberId` (cascade). `label` is free text ("LinkedIn", "GitHub", "Portfolio") — no enum, because the set of profiles a person has is open. Replaced the two fixed link columns; the migration backfilled both into rows before dropping them. Written as part of the member, replaced in one transaction. |
 | `Event` | Admin-authored events on the public Events tab | See below. |
 | ~~`Appointment`~~ | ~~Admin-declared appointments~~ | **Deleted 2026-09-01 ([ADR-011](../decisions/ADR-011-events-replace-appointments.md)),** along with the `AppointmentStatus` enum and every row. Replaced by `Event`. |
 | ~~`Setting`~~ | ~~Key/value flags~~ | **Deleted 2026-08-13 (ADR-010).** Held one key, `upcoming_events_visible`. |
 | `User`/`Session`/`Account`/`Verification` | Better Auth's own tables | Owned by Better Auth's Prisma adapter — **never query these from domain code**; only `src/modules/auth/auth.ts` hands the client to the adapter. |
 | `AuditLog` | Append-only audit trail | Written by repositories, not services — see [architecture/backend.md](backend.md#audit-logging). |
+
+### Per-team attribute rules (ADR-017)
+
+`TEAM_KIND_RULES` in `src/modules/shared/lib/team-kind.ts` is the single definition. The teaching
+service enforces it on write; the team-member service gates on it when reading a profile.
+
+| team | CV sections | courses | projects | credited research + publications | links |
+|------|-------------|---------|----------|----------------------------------|-------|
+| `director` | all seven | yes | yes | yes | yes |
+| `professor` | all seven | yes | yes | yes | yes |
+| `research` | `research_interest` only | no | yes | yes | yes |
+| `development` | none | no | yes | no | yes |
+
+A violation is a `400 validation_error` with `fieldErrors` — not `409` (there are no state machines
+here) and not `422` (`ValidationError` maps to 400 for the whole app).
+
+Changing a member's team **never deletes rows and is never blocked by rows that exist.** Rows that
+the new team may not have stop rendering publicly and become delete-only in the admin. Deleting on a
+team change would destroy real history to enforce a display rule; refusing the change would force the
+admin to delete someone's CV before reclassifying them.
+
+The rules table lives in `shared` rather than in `research-groups` or `teaching` because both
+enforce it — writes in one, reads in the other — and either home would create a module cycle. Its
+only import is a **type-only** `CvSection`, erased at build.
 
 ### `Event` — current shape
 

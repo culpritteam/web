@@ -1,8 +1,21 @@
 import { prisma } from '@/modules/shared/lib/prisma';
 import { auditLogData } from '@/modules/shared/lib/audit';
-import type { Prisma, TeamMember as PrismaTeamMember } from '@prisma/client';
-import type { AuditContext, TeamMember, TeamMemberStats } from './team-member.types';
-import type { CreateTeamMemberInput, UpdateTeamMemberInput } from './team-member.schema';
+import type {
+  Prisma,
+  MemberLink as PrismaMemberLink,
+  TeamMember as PrismaTeamMember,
+} from '@prisma/client';
+import type {
+  AuditContext,
+  MemberLink,
+  TeamMember,
+  TeamMemberStats,
+} from './team-member.types';
+import type {
+  CreateTeamMemberInput,
+  MemberLinkInput,
+  UpdateTeamMemberInput,
+} from './team-member.schema';
 
 // The ONLY place Prisma is used for team-member data. No business rules here — the service
 // decides WHAT to write; the repository just persists it atomically alongside its audit entry.
@@ -14,11 +27,14 @@ export interface TeamMemberRepository {
   findById(id: string): Promise<TeamMember | null>;
   /** The director first, then by sortOrder. */
   list(): Promise<TeamMember[]>;
+  /** One member's external links, in the admin's arrangement. */
+  listLinks(teamMemberId: string): Promise<MemberLink[]>;
   /** Headline counts only — no rows leave the database. */
   stats(): Promise<TeamMemberStats>;
   /**
    * Both writes clear `isDirector` on every other member in the same transaction when the input
-   * sets it to true, so the one-director partial unique index is never the thing that says no.
+   * sets it to true, so the one-director partial unique index is never the thing that says no, and
+   * replace the member's links wholesale in that same transaction when the input carries a list.
    */
   createWithAudit(input: { data: CreateTeamMemberData; audit: AuditContext }): Promise<TeamMember>;
   updateWithAudit(input: {
@@ -38,8 +54,7 @@ export function toDomain(row: PrismaTeamMember): TeamMember {
     affiliation: row.affiliation,
     bio: row.bio,
     photoUrl: row.photoUrl,
-    linkedinUrl: row.linkedinUrl,
-    googleScholarUrl: row.googleScholarUrl,
+    teamKind: row.teamKind,
     isDirector: row.isDirector,
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
@@ -47,10 +62,27 @@ export function toDomain(row: PrismaTeamMember): TeamMember {
   };
 }
 
+function toLink(row: PrismaMemberLink): MemberLink {
+  return { id: row.id, label: row.label, url: row.url, sortOrder: row.sortOrder };
+}
+
+/** The array's own order IS the stored order — the index becomes `sortOrder`. */
+const toLinkRows = (links: MemberLinkInput[]) =>
+  links.map((link, index) => ({ label: link.label, url: link.url, sortOrder: index }));
+
 const LIST_ORDER: Prisma.TeamMemberOrderByWithRelationInput[] = [
   { isDirector: 'desc' },
   { sortOrder: 'asc' },
   { name: 'asc' },
+];
+
+/**
+ * Links always come back in the order the admin arranged. `createdAt` only breaks a tie between
+ * rows that somehow share a `sortOrder`, so the order is total and the list never reshuffles.
+ */
+const LINK_ORDER: Prisma.MemberLinkOrderByWithRelationInput[] = [
+  { sortOrder: 'asc' },
+  { createdAt: 'asc' },
 ];
 
 const auditData = (audit: AuditContext, entityId: string) =>
@@ -70,6 +102,16 @@ export class PrismaTeamMemberRepository implements TeamMemberRepository {
   async list(): Promise<TeamMember[]> {
     const rows = await prisma.teamMember.findMany({ orderBy: LIST_ORDER });
     return rows.map(toDomain);
+  }
+
+  async listLinks(teamMemberId: string): Promise<MemberLink[]> {
+    // Read separately rather than `include`d on every member: only the profile page and the admin
+    // edit form need links, and the Team tab lists every member without rendering any of them.
+    const rows = await prisma.memberLink.findMany({
+      where: { teamMemberId },
+      orderBy: LINK_ORDER,
+    });
+    return rows.map(toLink);
   }
 
   async stats(): Promise<TeamMemberStats> {
@@ -92,9 +134,9 @@ export class PrismaTeamMemberRepository implements TeamMemberRepository {
           affiliation: input.data.affiliation ?? null,
           bio: input.data.bio ?? null,
           photoUrl: input.data.photoUrl ?? null,
-          linkedinUrl: input.data.linkedinUrl ?? null,
-          googleScholarUrl: input.data.googleScholarUrl ?? null,
+          teamKind: input.data.teamKind,
           isDirector: input.data.isDirector ?? false,
+          links: { create: toLinkRows(input.data.links ?? []) },
           sortOrder: input.data.sortOrder ?? 0,
         },
       });
@@ -127,12 +169,23 @@ export class PrismaTeamMemberRepository implements TeamMemberRepository {
           affiliation: input.data.affiliation,
           bio: input.data.bio,
           photoUrl: input.data.photoUrl,
-          linkedinUrl: input.data.linkedinUrl,
-          googleScholarUrl: input.data.googleScholarUrl,
+          teamKind: input.data.teamKind,
           isDirector: input.data.isDirector,
           sortOrder: input.data.sortOrder,
         },
       });
+
+      // Replaced wholesale rather than diffed, inside the same transaction as the member write and
+      // its audit entry — the same call `PublicationAuthor` rows make. The list is a handful of
+      // short rows, nothing holds a reference to a link row's id, and an absent `links` key still
+      // means "leave it alone", like every scalar column above.
+      if (input.data.links) {
+        await tx.memberLink.deleteMany({ where: { teamMemberId: row.id } });
+        await tx.memberLink.createMany({
+          data: toLinkRows(input.data.links).map((link) => ({ ...link, teamMemberId: row.id })),
+        });
+      }
+
       await tx.auditLog.create({ data: auditData(input.audit, row.id) });
       return row;
     });
@@ -140,8 +193,8 @@ export class PrismaTeamMemberRepository implements TeamMemberRepository {
   }
 
   async deleteWithAudit(input: { id: string; audit: AuditContext }): Promise<void> {
-    // CV entries and courses cascade with the member. The service puts the member's before-state
-    // in the audit metadata.
+    // CV entries, courses, projects and links cascade with the member. The service puts the
+    // member's before-state in the audit metadata.
     await prisma.$transaction(async (tx) => {
       await tx.teamMember.delete({ where: { id: input.id } });
       await tx.auditLog.create({ data: auditData(input.audit, input.id) });

@@ -50,6 +50,29 @@
   </div>
 </header>
 
+<div class="card">
+  <h4>This render lags the source &mdash; last reconciled 2026-09-12</h4>
+  <p><strong><code>PROJECT_SPEC.md</code> in the repository is authoritative.</strong> This page is
+  maintained by hand (there is no generation script), and it has fallen behind several accepted
+  decisions. Known to be wrong below, as of 2026-09-12:</p>
+  <ul>
+    <li>The <strong>Appointment</strong> entity, its status pills and Manage Appointments were
+    <strong>deleted 2026-09-01</strong> (ADR-011) and replaced by <strong>Event</strong>. Every
+    <code>/api/admin/appointments*</code> route is gone. NG6 and &sect;10.1 below still describe them.</li>
+    <li><strong>ResearchGroup</strong> and <code>research_group_id</code> were
+    <strong>dropped 2026-09-11</strong> (ADR-016). The site is the lab's, and the director is an
+    ordinary <code>TeamMember</code> row.</li>
+    <li>The professor's Json CV columns on <strong>Profile</strong> (education, fellowships,
+    teaching roles, awards, scholarships, research interests, invited talks) were replaced by
+    <code>cv_entry</code> rows on <strong>2026-09-02</strong> (ADR-012) and moved onto the
+    director's member row by ADR-016.</li>
+    <li>Attribution rows no longer carry <code>team_member_id</code> (ADR-016) &mdash; a byline is a
+    plain name, matched against members at render time.</li>
+  </ul>
+  <p>The <strong>&sect;7.1 TeamMember, Project and MemberLink</strong> tables and the per-team rules
+  below <em>are</em> current: they were reconciled against the code on 2026-09-12 for ADR-017.</p>
+</div>
+
 <!-- 1 -->
 <section id="s1">
   <h2><span class="n">01</span> Project Overview</h2>
@@ -247,8 +270,8 @@
     <tr><td>research_interests</td><td><code>text/json</code></td><td>research interests</td></tr>
     <tr><td>research_statement</td><td><code>text</code></td><td>research statement</td></tr>
     <tr><td>invited_talks</td><td><code>text/json</code></td><td>invited talks</td></tr>
-    <tr><td>linkedin_url</td><td><code>string</code></td><td>nullable — shown as a link on the public About tab <em>(added 2026-08-08)</em></td></tr>
-    <tr><td>google_scholar_url</td><td><code>string</code></td><td>nullable — shown as a link on the public About tab <em>(added 2026-08-08)</em></td></tr>
+    <tr><td><s>linkedin_url</s></td><td><code>string</code></td><td><strong>removed</strong> — moved to the director&#39;s <code>TeamMember</code> row 2026-09-11 (ADR-016), then to a <code>member_link</code> row 2026-09-12 (ADR-017)</td></tr>
+    <tr><td><s>google_scholar_url</s></td><td><code>string</code></td><td><strong>removed</strong> — same path as <code>linkedin_url</code> above</td></tr>
     <tr><td>updated_at</td><td><code>timestamp</code></td><td></td></tr>
   </table></div>
   <h4>Research</h4>
@@ -317,8 +340,65 @@
     <tr><td>role</td><td><code>string</code></td><td>e.g. "PhD Candidate", "Visiting Professor"</td></tr>
     <tr><td>bio</td><td><code>text</code></td><td>nullable</td></tr>
     <tr><td>photo_url</td><td><code>string</code></td><td>object-storage ref, nullable</td></tr>
-    <tr><td>research_group_id</td><td><code>uuid</code></td><td>FK → ResearchGroup, nullable (member may be unaffiliated)</td></tr>
-    <tr><td>sort_order</td><td><code>int</code></td><td>display order</td></tr>
+    <tr><td>team_kind</td><td><code>enum</code></td><td><em>(new 2026-09-12, ADR-017)</em> <code>director</code> | <code>professor</code> | <code>research</code> | <code>development</code>. NOT NULL, no DB default. Sets the team heading on the Team tab and what the member's profile page may have — see the rules below</td></tr>
+    <tr><td>is_director</td><td><code>bool</code></td><td>default false; at most one row true (partial unique index <code>team_member_one_director</code>). True exactly when <code>team_kind</code> is <code>director</code></td></tr>
+    <tr><td>citation_name</td><td><code>string</code></td><td>nullable — how the member is credited on papers ("J. Jaimunk"); drives byline highlighting</td></tr>
+    <tr><td>affiliation</td><td><code>text</code></td><td>nullable</td></tr>
+    <tr><td>sort_order</td><td><code>int</code></td><td>display order within the team</td></tr>
+    <tr><td>created_at / updated_at</td><td><code>timestamp</code></td><td></td></tr>
+  </table></div>
+  <blockquote><strong>Removed:</strong> <code>research_group_id</code>, <code>nickname</code> and
+  <code>show_on_team_tab</code> on 2026-09-11 (ADR-016); <code>linkedin_url</code> and
+  <code>google_scholar_url</code> on 2026-09-12 (ADR-017), backfilled into <code>member_link</code>
+  rows before the columns were dropped. Both fields therefore disappear from
+  <code>GET /api/team-members</code> — a deliberate break of a documented public surface, the
+  same class of change as ADR-007's <code>?groupId=</code> removal.</blockquote>
+  <blockquote><strong>Per-team attribute rules (2026-09-12, ADR-017).</strong> Defined once in
+  <code>TEAM_KIND_RULES</code> (<code>src/modules/shared/lib/team-kind.ts</code>); the services
+  enforce it on write and the profile read gates on it. Bio, projects and links are omitted because
+  every team has all three.</blockquote>
+  <div class="twrap"><table>
+    <tr><th>Team</th><th>CV sections</th><th>Courses</th><th>Credited research & publications</th></tr>
+    <tr><td><code>director</code></td><td>all seven</td><td>yes</td><td>yes</td></tr>
+    <tr><td><code>professor</code></td><td>all seven</td><td>yes</td><td>yes</td></tr>
+    <tr><td><code>research</code></td><td><code>research_interest</code> only</td><td>no</td><td>yes</td></tr>
+    <tr><td><code>development</code></td><td>none</td><td>no</td><td>no</td></tr>
+  </table></div>
+  <blockquote>A violation is a <strong><code>400 validation_error</code></strong> with
+  <code>fieldErrors</code> — not <code>409</code> (no state machines here) and not
+  <code>422</code> (<code>ValidationError</code> maps to 400 app-wide). Changing a member's team
+  <strong>never deletes rows and is never blocked by rows that exist</strong>: rows the new team may
+  not have stop rendering publicly and become delete-only in the admin.</blockquote>
+  <h4>Project <em>(new 2026-09-12, ADR-017)</em></h4>
+  <blockquote>Work owned by one member, rendered only on their profile page. Not a
+  <code>Research</code> row: research is lab output with an ordered byline and no owner, whereas a
+  project belongs to exactly one person. Admin CRUD only, at
+  <code>/api/admin/projects[/{id}]</code> — there is no public projects route and no projects
+  tab.</blockquote>
+  <div class="twrap"><table>
+    <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+    <tr><td>id</td><td><code>uuid</code></td><td>PK</td></tr>
+    <tr><td>team_member_id</td><td><code>uuid</code></td><td>FK → TeamMember, required, cascade</td></tr>
+    <tr><td>title</td><td><code>string</code></td><td>≤300</td></tr>
+    <tr><td>summary</td><td><code>text</code></td><td>≤5000</td></tr>
+    <tr><td>link</td><td><code>string</code></td><td>nullable — repository, demo or project page</td></tr>
+    <tr><td>sort_order</td><td><code>int</code></td><td>display order within the member</td></tr>
+    <tr><td>created_at / updated_at</td><td><code>timestamp</code></td><td></td></tr>
+  </table></div>
+  <h4>MemberLink <em>(new 2026-09-12, ADR-017 — replaced <code>linkedin_url</code> / <code>google_scholar_url</code>)</em></h4>
+  <blockquote><code>label</code> is free text the admin types ("LinkedIn", "GitHub", "Portfolio",
+  "ORCID") — no enum and no allow-list, because the point of the change is that the set of
+  profiles a person has is open. A developer needs a portfolio and a GitHub, not a Google Scholar.
+  Edited as part of the member payload and replaced in one transaction, so there is no
+  <code>/api/admin/member-links</code> surface: omitting <code>links</code> on an update leaves the
+  stored rows alone, sending <code>[]</code> clears them.</blockquote>
+  <div class="twrap"><table>
+    <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+    <tr><td>id</td><td><code>uuid</code></td><td>PK</td></tr>
+    <tr><td>team_member_id</td><td><code>uuid</code></td><td>FK → TeamMember, required, cascade</td></tr>
+    <tr><td>label</td><td><code>string</code></td><td>≤60, free text</td></tr>
+    <tr><td>url</td><td><code>string</code></td><td>http/https only</td></tr>
+    <tr><td>sort_order</td><td><code>int</code></td><td>the order the admin arranged them in</td></tr>
     <tr><td>created_at / updated_at</td><td><code>timestamp</code></td><td></td></tr>
   </table></div>
   <h4>Appointment <em>(rewritten 2026-08-08 — see §2 NG6, §10.1; extended 2026-08-13, ADR-010)</em></h4>
@@ -483,7 +563,7 @@
     <tr><td><code>PUT/POST/DELETE</code></td><td><code>/api/admin/research</code></td><td>Admin</td><td>CRUD research.</td></tr>
     <tr><td><code>PUT/POST/DELETE</code></td><td><code>/api/admin/publications</code></td><td>Admin</td><td>CRUD publications.</td></tr>
     <tr><td><code>PUT/POST/DELETE</code></td><td><code>/api/admin/groups</code></td><td>Admin</td><td>CRUD groups.</td></tr>
-    <tr><td><code>POST/PUT/DELETE</code></td><td><code>/api/admin/team-members[/{id}]</code></td><td>Admin</td><td>CRUD team members (optional research_group_id).</td></tr>
+    <tr><td><code>POST/PUT/DELETE</code></td><td><code>/api/admin/team-members[/{id}]</code></td><td>Admin</td><td>CRUD team members: <code>team_kind</code>, the director flag, and the member&#39;s <code>links</code> array. Omitting <code>links</code> on an update leaves stored links alone; <code>[]</code> clears them (ADR-017).</td></tr>
     <tr><td><s><code>PUT</code></s></td><td><s><code>/api/admin/settings</code></s></td><td>—</td><td><em>(removed 2026-08-13, ADR-010)</em> Toggled global event visibility. Replaced by per-appointment <code>PATCH /api/admin/appointments/{id}/visibility</code>, §8.2.</td></tr>
   </table></div>
   <blockquote>Admin endpoints validate the session (<code>401</code> if not). Invalid status moves are
@@ -658,7 +738,9 @@
   a low-risk simplification for a single-admin site.</blockquote>
   <h3>12.2 Module boundaries</h3>
   <ul>
-    <li><strong>content</strong> — profile, research, publications, research-groups (incl. TeamMember) (read public, write admin).</li>
+    <li><strong>content</strong> — profile, research, publications, research-groups (incl. TeamMember, its <code>team_kind</code> and its MemberLink rows) (read public, write admin).</li>
+    <li><strong>projects</strong> <em>(new 2026-09-12, ADR-017)</em> — member-owned project CRUD. Admin-only surface; the public read goes through the member profile, so there is no public projects route.</li>
+    <li><strong>shared/team-kind</strong> <em>(new 2026-09-12, ADR-017)</em> — the four teams and <code>TEAM_KIND_RULES</code>, the one definition of what each team may have. In <code>shared</code> because both <code>teaching</code> (writes) and <code>research-groups</code> (reads) enforce it, and either other home would create a module cycle.</li>
     <li><strong>appointments</strong> — admin-declared create/update/cancel/reschedule/delete, per-row isPublic visibility, audit trail. No request intake (removed 2026-08-08).</li>
     <li><strong>auth</strong> — single-admin session management (Better Auth, DB-backed cookie sessions).</li>
     <li><s><strong>settings</strong></s> — <strong>deleted 2026-08-13, ADR-010</strong> (was: the global upcoming-events-visible feature flag). Upcoming Events visibility is now <code>Appointment.isPublic</code>, owned by the appointments module — there is no separate settings module or Setting model anymore.</li>

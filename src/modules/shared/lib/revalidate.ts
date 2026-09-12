@@ -30,6 +30,10 @@ const AREA_PATHS = {
    * Team members: the Team tab, every member profile page, and — because a byline name that
    * matches a member's name or citation name is highlighted and linked — Research and Publications.
    *
+   * A member's external links are written as part of the member, so they ride along on this area;
+   * so does a team change, which alters both the card's grouping on `/team` and which sections the
+   * profile page renders.
+   *
    * `/api/team-members/{id}` is not listed: a template purge targets a route's `page` entry, which a
    * route handler does not have, so the per-member API mirror relies on its own 3600s `revalidate`
    * ceiling alone. Accepted gap: the profile PAGE, which is what visitors see, is purged.
@@ -42,6 +46,12 @@ const AREA_PATHS = {
    * director's. The member id is not known here, so every profile page is purged.
    */
   teaching: ['/team/[id]', '/api/teaching'],
+  /**
+   * Projects. They render inside their member's profile page and nowhere else — there is no public
+   * projects tab and no public `/api/projects` route to mirror, and the Team tab's card does not
+   * show them. The member id is not known here, so every profile page is purged.
+   */
+  projects: ['/team/[id]'],
   /**
    * The About tab alone. Separate from `'profile'`, which drops the whole layout subtree because
    * the lab's name and logo render in the site header on every page.

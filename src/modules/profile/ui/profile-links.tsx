@@ -1,30 +1,21 @@
 import { ArrowUpRight } from 'lucide-react';
 
-// External academic/professional profiles for a person — since ADR-016, a team member. Rendered as
+// A team member's external profile links (`member_link` rows, free-form label + URL). Rendered as
 // a compact row under the bio, and nothing at all when no link is set.
 
-export type ProfileLinkFields = {
-  linkedinUrl?: string | null;
-  googleScholarUrl?: string | null;
-};
+/**
+ * One link to render. Structural on purpose, so this takes the `MemberLink` rows the profile
+ * service returns without the profile module importing the research-groups module for a type.
+ */
+export type ProfileLinkItem = { id: string; label: string; url: string };
 
-const LINKS = [
-  { field: 'linkedinUrl', label: 'LinkedIn' },
-  { field: 'googleScholarUrl', label: 'Google Scholar' },
-] as const satisfies readonly { field: keyof ProfileLinkFields; label: string }[];
-
-export function ProfileLinks({ links }: { links: ProfileLinkFields }) {
-  const present = LINKS.flatMap(({ field, label }) => {
-    const href = links[field];
-    return href ? [{ field, href, label }] : [];
-  });
-
-  if (present.length === 0) return null;
+export function ProfileLinks({ links }: { links: readonly ProfileLinkItem[] }) {
+  if (links.length === 0) return null;
 
   return (
     <ul className="flex flex-wrap items-center gap-x-7 gap-y-2">
-      {present.map(({ field, href, label }) => (
-        <li key={field}>
+      {links.map(({ id, url: href, label }) => (
+        <li key={id}>
           <a
             href={href}
             target="_blank"
