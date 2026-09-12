@@ -36,6 +36,7 @@ export {
   groupByLevel,
   type CvEntryService,
   type CourseService,
+  type MemberTeamDirectory,
 } from './teaching.service';
 
 export type { CvEntryRepository } from './cv-entry.repository';
