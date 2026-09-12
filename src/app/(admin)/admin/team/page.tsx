@@ -24,10 +24,19 @@ const PROFILE_SECTIONS = [
 ] as const;
 
 export default async function AdminTeamPage() {
-  const [profileResult, membersResult] = await Promise.all([
-    getProfileCached(),
-    getTeamMemberService().list(),
-  ]);
+  const service = getTeamMemberService();
+  const [profileResult, membersResult] = await Promise.all([getProfileCached(), service.list()]);
+  const members = membersResult.ok ? membersResult.data : [];
+
+  // The member dialog edits the whole link list, so it needs the stored rows up front. One small
+  // read per member: the lab is a handful of people, and this is an admin screen with no cache to
+  // protect — a join would be the repository's call to make, not this page's.
+  const links = await Promise.all(
+    members.map(async (member) => {
+      const result = await service.listLinks(member.id);
+      return [member.id, result.ok ? result.data : []] as const;
+    }),
+  );
 
   return (
     <AdminScreen
@@ -39,7 +48,7 @@ export default async function AdminTeamPage() {
         profile={profileResult.ok ? profileResult.data : null}
         sections={PROFILE_SECTIONS}
       />
-      <TeamMembersTable items={membersResult.ok ? membersResult.data : []} />
+      <TeamMembersTable items={members} linksByMember={Object.fromEntries(links)} />
     </AdminScreen>
   );
 }
