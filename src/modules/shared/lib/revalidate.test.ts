@@ -51,6 +51,14 @@ describe('revalidatePublic', () => {
     expect(mockedRevalidatePath).toHaveBeenCalledTimes(2);
   });
 
+  it('revalidates only the member profile pages for project edits', () => {
+    revalidatePublic('projects');
+
+    // Projects render inside `/team/[id]` and nowhere else — no public tab, no mirrored API route.
+    expect(mockedRevalidatePath).toHaveBeenCalledWith('/team/[id]', 'page');
+    expect(mockedRevalidatePath).toHaveBeenCalledTimes(1);
+  });
+
   it('revalidates the events page and the events API route', () => {
     revalidatePublic('events');
 

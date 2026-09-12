@@ -11,14 +11,27 @@ const normalize = (value: string) => value.trim().toLowerCase();
  * whitespace. Nothing fuzzier — a near miss renders grey rather than crediting the wrong person.
  */
 export function matchMember<M extends BylineMember>(name: string, members: readonly M[]): M | null {
+  if (!normalize(name)) return null;
+  return members.find((member) => isMemberByline(member, name)) ?? null;
+}
+
+/**
+ * Whether a byline name credits THIS member — the per-member half of `matchMember`, same exact
+ * case-insensitive trimmed rule.
+ *
+ * This is how a member's profile page resolves the research items and publications they worked on:
+ * bylines carry no link to a member (ADR-016 forbids storing one), so the page filters the lists it
+ * already has by this predicate at render time. No DB relation, no extra query.
+ */
+export function isMemberByline(
+  member: Pick<BylineMember, 'name' | 'citationName'>,
+  name: string,
+): boolean {
   const key = normalize(name);
-  if (!key) return null;
+  if (!key) return false;
   return (
-    members.find(
-      (member) =>
-        normalize(member.name) === key ||
-        (member.citationName !== null && normalize(member.citationName) === key),
-    ) ?? null
+    normalize(member.name) === key ||
+    (member.citationName !== null && normalize(member.citationName) === key)
   );
 }
 
