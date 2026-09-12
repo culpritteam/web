@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { afterEach, beforeAll, describe, expect, it, vi, beforeEach } from 'vitest';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import type { TeamMember, TeamMemberProfile } from '@/modules/research-groups';
 
 // The page reads through four module barrels, each of which also re-exports a Prisma-backed
@@ -119,12 +119,25 @@ const research = {
   updatedAt: new Date(),
 };
 
+// Imported once, not per test. The page pulls in four module barrels behind `vi.mock` factories;
+// paying that in the first test's own time budget is what made this file time out at 5s when the
+// full suite runs its files in parallel and everything is competing for the same CPU.
+let TeamMemberPage: (props: { params: Promise<{ id: string }> }) => Promise<React.ReactElement>;
+
+beforeAll(async () => {
+  TeamMemberPage = (await import('../page')).default;
+});
+
 async function renderPage() {
-  const { default: TeamMemberPage } = await import('../page');
   render(await TeamMemberPage({ params: Promise.resolve({ id: 'm1' }) }));
 }
 
 describe('TeamMemberPage', () => {
+  // Explicit, not relying on Testing Library's auto-cleanup. Without it the previous test's tree
+  // stayed mounted and `getByRole('region', { name: 'Publications' })` found two — which is exactly
+  // how this file failed in the full suite while passing when run on its own.
+  afterEach(cleanup);
+
   beforeEach(() => {
     findProfileMock.mockReset();
     listResearchMock.mockReset().mockResolvedValue({ ok: true, data: [research] });
