@@ -135,6 +135,20 @@ nobody trusts the wrong source, and a maintainer can decide what (if anything) t
    still shows the professor-centred `Profile`, research groups and byline member links.
    `scripts/docs-search.mjs` only walks `.md` files, which is how the drift went unnoticed.
 
+   **Partially addressed 2026-09-12** ([ADR-017](decisions/ADR-017-team-kinds-projects-member-links.md)):
+   the file now opens with a banner naming exactly which sections are known-wrong and pointing at
+   the `.md` as authoritative, and its §7.1 `TeamMember` table plus the new `Project` and
+   `MemberLink` tables, the per-team rules, the admin API row and the module list were reconciled
+   against the code. **The pre-ADR-011/012 drift is still there** — `Appointment`, its status pills
+   and §10.1, and the professor's Json CV columns. Re-syncing those is a separate job.
+
+10. **`PROJECT_SPEC.md` is git-ignored** (`.gitignore:5`), so the authoritative spec is a
+    local-only file that never reaches either remote. Anyone cloning the repository gets
+    `docs-site/PROJECT_SPEC.html` — the stale hand-maintained render of item 9 — and this `docs/`
+    tree, but not the document both of those defer to. Noticed 2026-09-12 while updating the spec
+    for ADR-017. Whether that is deliberate (the spec carries client-confidential detail) or an
+    accident is a maintainer decision, so nothing was changed.
+
 ## Retrieval
 
 `npm run docs:search -- "<query>"` — see the script header in `scripts/docs-search.mjs` for how
